@@ -5,6 +5,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- `kaizen edit <id> <new-title>` command to rename an existing task, with tests.
+
 ## [0.1.0] - 2026-08-26
 
 ### Added

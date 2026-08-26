@@ -42,6 +42,18 @@ def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    for t in tasks:
+        if t.id == args.id:
+            t.title = args.title
+            store.save(tasks)
+            print(f"Edited #{t.id}: {t.title}")
+            return 0
+    print(f"No task with id {args.id}", file=sys.stderr)
+    return 1
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -70,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_done = sub.add_parser("done", help="Mark a task done")
     p_done.add_argument("id", type=int, help="Task id")
     p_done.set_defaults(func=cmd_done)
+
+    p_edit = sub.add_parser("edit", help="Edit a task's title")
+    p_edit.add_argument("id", type=int, help="Task id")
+    p_edit.add_argument("title", help="New task title")
+    p_edit.set_defaults(func=cmd_edit)
 
     p_rm = sub.add_parser("rm", help="Remove a task")
     p_rm.add_argument("id", type=int, help="Task id")

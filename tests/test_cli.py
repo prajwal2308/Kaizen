@@ -32,6 +32,23 @@ def test_done_unknown_id_errors():
     assert main(["done", "999"]) == 1
 
 
+def test_edit_changes_title(capsys):
+    main(["add", "original title"])
+    capsys.readouterr()
+
+    assert main(["edit", "1", "corrected title"]) == 0
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "corrected title" in out
+    assert "original title" not in out
+
+
+def test_edit_unknown_id_errors():
+    assert main(["edit", "999", "new title"]) == 1
+
+
 def test_rm_removes_task(capsys):
     main(["add", "temp task"])
     assert main(["rm", "1"]) == 0

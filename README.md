@@ -23,6 +23,7 @@ pip install -e .
 ```bash
 kaizen add "write the weekly review"
 kaizen list
+kaizen edit 1 "write and send the weekly review"
 kaizen done 1
 kaizen list --all
 kaizen rm 1
