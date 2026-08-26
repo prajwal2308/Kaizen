@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+import argparse
+import sys
+from datetime import datetime, timezone
+
+from kaizen.storage import Task, TaskStore
+
+
+def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    task = Task(id=store.next_id(tasks), title=args.title)
+    tasks.append(task)
+    store.save(tasks)
+    print(f"Added #{task.id}: {task.title}")
+    return 0
+
+
+def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    if not args.all:
+        tasks = [t for t in tasks if not t.done]
+    if not tasks:
+        print("No tasks.")
+        return 0
+    for t in tasks:
+        mark = "x" if t.done else " "
+        print(f"[{mark}] #{t.id} {t.title}")
+    return 0
+
+
+def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    for t in tasks:
+        if t.id == args.id:
+            t.done = True
+            t.done_at = datetime.now(timezone.utc).isoformat()
+            store.save(tasks)
+            print(f"Marked #{t.id} done.")
+            return 0
+    print(f"No task with id {args.id}", file=sys.stderr)
+    return 1
+
+
+def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    remaining = [t for t in tasks if t.id != args.id]
+    if len(remaining) == len(tasks):
+        print(f"No task with id {args.id}", file=sys.stderr)
+        return 1
+    store.save(remaining)
+    print(f"Removed #{args.id}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="kaizen", description="A local-first task and journal CLI."
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_add = sub.add_parser("add", help="Add a new task")
+    p_add.add_argument("title", help="Task title")
+    p_add.set_defaults(func=cmd_add)
+
+    p_list = sub.add_parser("list", help="List tasks")
+    p_list.add_argument("--all", action="store_true", help="Include completed tasks")
+    p_list.set_defaults(func=cmd_list)
+
+    p_done = sub.add_parser("done", help="Mark a task done")
+    p_done.add_argument("id", type=int, help="Task id")
+    p_done.set_defaults(func=cmd_done)
+
+    p_rm = sub.add_parser("rm", help="Remove a task")
+    p_rm.add_argument("id", type=int, help="Task id")
+    p_rm.set_defaults(func=cmd_rm)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    store = TaskStore()
+    return args.func(store, args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
