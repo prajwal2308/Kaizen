@@ -32,6 +32,31 @@ def test_done_unknown_id_errors():
     assert main(["done", "999"]) == 1
 
 
+def test_add_default_priority_is_med(capsys):
+    main(["add", "no priority given"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "(med) no priority given" in out
+
+
+def test_add_with_priority_shown_in_list(capsys):
+    main(["add", "fix the outage", "--priority", "high"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "(high) fix the outage" in out
+
+
+def test_list_sorts_by_priority_high_first(capsys):
+    main(["add", "low task", "--priority", "low"])
+    main(["add", "high task", "--priority", "high"])
+    main(["add", "med task", "--priority", "med"])
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert out.index("high task") < out.index("med task") < out.index("low task")
+
+
 def test_edit_changes_title(capsys):
     main(["add", "original title"])
     capsys.readouterr()

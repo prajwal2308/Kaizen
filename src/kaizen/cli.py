@@ -4,12 +4,12 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
-from kaizen.storage import Task, TaskStore
+from kaizen.storage import PRIORITIES, Task, TaskStore, priority_rank
 
 
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
-    task = Task(id=store.next_id(tasks), title=args.title)
+    task = Task(id=store.next_id(tasks), title=args.title, priority=args.priority)
     tasks.append(task)
     store.save(tasks)
     print(f"Added #{task.id}: {task.title}")
@@ -23,9 +23,10 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     if not tasks:
         print("No tasks.")
         return 0
+    tasks.sort(key=lambda t: (priority_rank(t.priority), t.id))
     for t in tasks:
         mark = "x" if t.done else " "
-        print(f"[{mark}] #{t.id} {t.title}")
+        print(f"[{mark}] #{t.id} ({t.priority}) {t.title}")
     return 0
 
 
@@ -73,6 +74,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_add = sub.add_parser("add", help="Add a new task")
     p_add.add_argument("title", help="Task title")
+    p_add.add_argument(
+        "--priority",
+        choices=PRIORITIES,
+        default="med",
+        help="Task priority (default: med)",
+    )
     p_add.set_defaults(func=cmd_add)
 
     p_list = sub.add_parser("list", help="List tasks")

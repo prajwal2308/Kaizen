@@ -13,6 +13,15 @@ def _default_data_dir() -> Path:
 DATA_DIR = _default_data_dir()
 DATA_FILE = "tasks.json"
 
+PRIORITIES = ("low", "med", "high")
+DEFAULT_PRIORITY = "med"
+_PRIORITY_RANK = {p: i for i, p in enumerate(PRIORITIES)}
+
+
+def priority_rank(priority: str) -> int:
+    """Higher rank sorts first (high, then med, then low)."""
+    return -_PRIORITY_RANK[priority]
+
 
 @dataclass
 class Task:
@@ -21,6 +30,7 @@ class Task:
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     done: bool = False
     done_at: str | None = None
+    priority: str = DEFAULT_PRIORITY
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -33,6 +43,7 @@ class Task:
             created_at=data.get("created_at", ""),
             done=data.get("done", False),
             done_at=data.get("done_at"),
+            priority=data.get("priority", DEFAULT_PRIORITY),
         )
 
 

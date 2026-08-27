@@ -22,6 +22,7 @@ pip install -e .
 
 ```bash
 kaizen add "write the weekly review"
+kaizen add "renew passport" --priority high
 kaizen list
 kaizen edit 1 "write and send the weekly review"
 kaizen done 1

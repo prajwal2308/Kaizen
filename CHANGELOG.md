@@ -7,6 +7,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - `kaizen edit <id> <new-title>` command to rename an existing task, with tests.
+- `--priority {low,med,high}` on `kaizen add` (default `med`); `list` shows each task's priority and sorts high-priority tasks first.
 
 ## [0.1.0] - 2026-08-26
 
