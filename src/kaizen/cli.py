@@ -4,12 +4,22 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
-from kaizen.storage import PRIORITIES, Task, TaskStore, priority_rank
+from kaizen.storage import PRIORITIES, Task, TaskStore, is_overdue, priority_rank
+
+
+def _parse_due(value: str) -> str:
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid due date {value!r}, expected YYYY-MM-DD"
+        ) from None
+    return value
 
 
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
-    task = Task(id=store.next_id(tasks), title=args.title, priority=args.priority)
+    task = Task(id=store.next_id(tasks), title=args.title, priority=args.priority, due=args.due)
     tasks.append(task)
     store.save(tasks)
     print(f"Added #{task.id}: {task.title}")
@@ -24,9 +34,15 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
         print("No tasks.")
         return 0
     tasks.sort(key=lambda t: (priority_rank(t.priority), t.id))
+    today = datetime.now(timezone.utc).date().isoformat()
     for t in tasks:
         mark = "x" if t.done else " "
-        print(f"[{mark}] #{t.id} ({t.priority}) {t.title}")
+        line = f"[{mark}] #{t.id} ({t.priority}) {t.title}"
+        if t.due:
+            line += f" [due {t.due}]"
+            if is_overdue(t, today):
+                line += " OVERDUE"
+        print(line)
     return 0
 
 
@@ -79,6 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=PRIORITIES,
         default="med",
         help="Task priority (default: med)",
+    )
+    p_add.add_argument(
+        "--due",
+        type=_parse_due,
+        default=None,
+        help="Due date as YYYY-MM-DD",
     )
     p_add.set_defaults(func=cmd_add)
 

@@ -31,6 +31,7 @@ class Task:
     done: bool = False
     done_at: str | None = None
     priority: str = DEFAULT_PRIORITY
+    due: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -44,7 +45,16 @@ class Task:
             done=data.get("done", False),
             done_at=data.get("done_at"),
             priority=data.get("priority", DEFAULT_PRIORITY),
+            due=data.get("due"),
         )
+
+
+def is_overdue(task: Task, today: str) -> bool:
+    """A task is overdue if it has a due date in the past and isn't done yet.
+
+    `today` is an ISO `YYYY-MM-DD` string; ISO dates compare correctly as strings.
+    """
+    return bool(task.due) and not task.done and task.due < today
 
 
 class TaskStore:

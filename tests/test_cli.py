@@ -57,6 +57,35 @@ def test_list_sorts_by_priority_high_first(capsys):
     assert out.index("high task") < out.index("med task") < out.index("low task")
 
 
+def test_add_with_due_shown_in_list(capsys):
+    main(["add", "renew passport", "--due", "2099-01-01"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[due 2099-01-01]" in out
+    assert "OVERDUE" not in out
+
+
+def test_list_marks_past_due_task_overdue(capsys):
+    main(["add", "pay rent", "--due", "2000-01-01"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[due 2000-01-01] OVERDUE" in out
+
+
+def test_list_does_not_mark_done_task_overdue(capsys):
+    main(["add", "pay rent", "--due", "2000-01-01"])
+    main(["done", "1"])
+    capsys.readouterr()
+    main(["list", "--all"])
+    out = capsys.readouterr().out
+    assert "OVERDUE" not in out
+
+
+def test_add_invalid_due_date_errors():
+    with pytest.raises(SystemExit):
+        main(["add", "bad date", "--due", "not-a-date"])
+
+
 def test_edit_changes_title(capsys):
     main(["add", "original title"])
     capsys.readouterr()
