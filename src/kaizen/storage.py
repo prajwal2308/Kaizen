@@ -32,6 +32,7 @@ class Task:
     done_at: str | None = None
     priority: str = DEFAULT_PRIORITY
     due: str | None = None
+    tags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -46,6 +47,7 @@ class Task:
             done_at=data.get("done_at"),
             priority=data.get("priority", DEFAULT_PRIORITY),
             due=data.get("due"),
+            tags=list(data.get("tags", [])),
         )
 
 

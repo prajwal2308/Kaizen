@@ -19,7 +19,14 @@ def _parse_due(value: str) -> str:
 
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
-    task = Task(id=store.next_id(tasks), title=args.title, priority=args.priority, due=args.due)
+    tags = list(dict.fromkeys(args.tags or []))
+    task = Task(
+        id=store.next_id(tasks),
+        title=args.title,
+        priority=args.priority,
+        due=args.due,
+        tags=tags,
+    )
     tasks.append(task)
     store.save(tasks)
     print(f"Added #{task.id}: {task.title}")
@@ -30,6 +37,8 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     if not args.all:
         tasks = [t for t in tasks if not t.done]
+    if args.tag:
+        tasks = [t for t in tasks if args.tag in t.tags]
     if not tasks:
         print("No tasks.")
         return 0
@@ -42,6 +51,8 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
             line += f" [due {t.due}]"
             if is_overdue(t, today):
                 line += " OVERDUE"
+        if t.tags:
+            line += f" [tags: {', '.join(t.tags)}]"
         print(line)
     return 0
 
@@ -102,10 +113,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Due date as YYYY-MM-DD",
     )
+    p_add.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Tag the task (repeatable)",
+    )
     p_add.set_defaults(func=cmd_add)
 
     p_list = sub.add_parser("list", help="List tasks")
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
+    p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
     p_list.set_defaults(func=cmd_list)
 
     p_done = sub.add_parser("done", help="Mark a task done")

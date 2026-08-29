@@ -9,6 +9,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `kaizen edit <id> <new-title>` command to rename an existing task, with tests.
 - `--priority {low,med,high}` on `kaizen add` (default `med`); `list` shows each task's priority and sorts high-priority tasks first.
 - `--due YYYY-MM-DD` on `kaizen add`; `list` shows each task's due date and flags past-due, unfinished tasks as `OVERDUE`.
+- `--tag <name>` (repeatable) on `kaizen add`; `list` shows each task's tags and `list --tag <name>` filters to tasks carrying that tag.
 
 ## [0.1.0] - 2026-08-26
 

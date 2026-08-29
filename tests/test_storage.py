@@ -43,6 +43,27 @@ def test_is_overdue_false_when_no_due_date():
     assert is_overdue(task, today="2026-01-02") is False
 
 
+def test_task_tags_defaults_to_empty_list():
+    assert Task(id=1, title="a").tags == []
+
+
+def test_from_dict_defaults_tags_when_missing():
+    task = Task.from_dict({"id": 1, "title": "legacy task"})
+    assert task.tags == []
+
+
+def test_from_dict_reads_tags():
+    task = Task.from_dict({"id": 1, "title": "a", "tags": ["work", "home"]})
+    assert task.tags == ["work", "home"]
+
+
+def test_task_tags_defaults_are_independent_instances():
+    a = Task(id=1, title="a")
+    b = Task(id=2, title="b")
+    a.tags.append("work")
+    assert b.tags == []
+
+
 def test_load_empty_when_no_file(tmp_path):
     store = TaskStore(data_dir=tmp_path)
     assert store.load() == []

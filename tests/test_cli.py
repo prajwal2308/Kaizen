@@ -86,6 +86,38 @@ def test_add_invalid_due_date_errors():
         main(["add", "bad date", "--due", "not-a-date"])
 
 
+def test_add_with_tags_shown_in_list(capsys):
+    main(["add", "clean garage", "--tag", "home", "--tag", "chores"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[tags: home, chores]" in out
+
+
+def test_add_without_tags_shows_no_tags_bracket(capsys):
+    main(["add", "no tags here"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[tags:" not in out
+
+
+def test_add_dedupes_repeated_tags(capsys):
+    main(["add", "dedupe me", "--tag", "work", "--tag", "work"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[tags: work]" in out
+
+
+def test_list_filters_by_tag(capsys):
+    main(["add", "work task", "--tag", "work"])
+    main(["add", "home task", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["list", "--tag", "work"])
+    out = capsys.readouterr().out
+    assert "work task" in out
+    assert "home task" not in out
+
+
 def test_edit_changes_title(capsys):
     main(["add", "original title"])
     capsys.readouterr()

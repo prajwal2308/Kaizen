@@ -24,7 +24,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 6. `kaizen edit <id> <new-title>` command + tests
 - [x] 7. Priorities: `--priority {low,med,high}` on `add`, shown in `list`, sortable
 - [x] 8. Due dates: `--due YYYY-MM-DD` on `add`; `list` shows overdue items distinctly
-- [ ] 9. Tags: `--tag work --tag home` (repeatable) on `add`; `list --tag work` filters
+- [x] 9. Tags: `--tag work --tag home` (repeatable) on `add`; `list --tag work` filters
 - [ ] 10. `kaizen show <id>` — full detail view of a single task
 
 ## Phase 2 — Journaling
