@@ -27,6 +27,7 @@ kaizen add "pay rent" --due 2026-09-01
 kaizen add "mow the lawn" --tag home --tag chores
 kaizen list
 kaizen list --tag home
+kaizen show 1
 kaizen edit 1 "write and send the weekly review"
 kaizen done 1
 kaizen list --all

@@ -118,6 +118,55 @@ def test_list_filters_by_tag(capsys):
     assert "home task" not in out
 
 
+def test_show_displays_full_detail(capsys):
+    main(["add", "renew passport", "--priority", "high", "--due", "2099-01-01", "--tag", "admin"])
+    capsys.readouterr()
+
+    assert main(["show", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "#1 renew passport" in out
+    assert "Status: pending" in out
+    assert "Priority: high" in out
+    assert "Due: 2099-01-01" in out
+    assert "OVERDUE" not in out
+    assert "Tags: admin" in out
+    assert "Created:" in out
+
+
+def test_show_marks_overdue_task(capsys):
+    main(["add", "pay rent", "--due", "2000-01-01"])
+    capsys.readouterr()
+
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2000-01-01 (OVERDUE)" in out
+
+
+def test_show_task_without_due_or_tags(capsys):
+    main(["add", "bare task"])
+    capsys.readouterr()
+
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: (none)" in out
+    assert "Tags: (none)" in out
+
+
+def test_show_done_task_includes_completed_at(capsys):
+    main(["add", "finish report"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Status: done" in out
+    assert "Completed:" in out
+
+
+def test_show_unknown_id_errors():
+    assert main(["show", "999"]) == 1
+
+
 def test_edit_changes_title(capsys):
     main(["add", "original title"])
     capsys.readouterr()

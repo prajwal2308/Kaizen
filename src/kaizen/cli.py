@@ -57,6 +57,27 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    for t in tasks:
+        if t.id == args.id:
+            today = datetime.now(timezone.utc).date().isoformat()
+            print(f"#{t.id} {t.title}")
+            print(f"Status: {'done' if t.done else 'pending'}")
+            print(f"Priority: {t.priority}")
+            due_line = f"Due: {t.due}" if t.due else "Due: (none)"
+            if t.due and is_overdue(t, today):
+                due_line += " (OVERDUE)"
+            print(due_line)
+            print(f"Tags: {', '.join(t.tags) if t.tags else '(none)'}")
+            print(f"Created: {t.created_at}")
+            if t.done_at:
+                print(f"Completed: {t.done_at}")
+            return 0
+    print(f"No task with id {args.id}", file=sys.stderr)
+    return 1
+
+
 def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     for t in tasks:
@@ -126,6 +147,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
     p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
     p_list.set_defaults(func=cmd_list)
+
+    p_show = sub.add_parser("show", help="Show full details for a task")
+    p_show.add_argument("id", type=int, help="Task id")
+    p_show.set_defaults(func=cmd_show)
 
     p_done = sub.add_parser("done", help="Mark a task done")
     p_done.add_argument("id", type=int, help="Task id")
