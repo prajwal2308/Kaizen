@@ -1,9 +1,16 @@
 """Fetch the reel and render it down to what the model needs: audio + frames.
 
-This is the fragile half of the system. Meta does not offer an API that returns
-a third-party reel's media, so this uses yt-dlp, which means it will break
-periodically and needs a logged-in cookie jar for most URLs. Everything here is
-written to fail loudly with a message that says which half broke.
+Two ways in:
+
+`fetch_direct` takes a media URL Meta itself handed us in a DM webhook. It is a
+plain download — sanctioned, no cookies, nothing to break when Meta reshuffles
+its HTML. Prefer it whenever it is available.
+
+`fetch` scrapes a page URL with yt-dlp, for links that arrive through the iOS
+share sheet instead of a DM. That path needs a logged-in cookie jar and will
+break periodically.
+
+Both converge on the same ffmpeg rendering.
 """
 
 from __future__ import annotations
@@ -12,6 +19,8 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import httpx
 
 
 class MediaError(RuntimeError):
@@ -30,12 +39,43 @@ class Media:
 
 def fetch(url: str, workdir: Path, *, cookies_file: str | None, frame_count: int,
           max_duration_seconds: int) -> Media:
+    """Scrape a reel page URL. The fragile path — see the module docstring."""
+    _require_ffmpeg()
+    info, video_path = _download(url, workdir, cookies_file)
+    return _render(video_path, workdir, info, frame_count, max_duration_seconds)
+
+
+def fetch_direct(media_url: str, workdir: Path, *, frame_count: int,
+                 max_duration_seconds: int, title: str | None = None) -> Media:
+    """Download a media URL Meta gave us directly. The sanctioned path."""
+    _require_ffmpeg()
+    video_path = workdir / "source.mp4"
+    try:
+        with httpx.stream("GET", media_url, follow_redirects=True, timeout=60.0) as response:
+            response.raise_for_status()
+            with video_path.open("wb") as fh:
+                for chunk in response.iter_bytes(chunk_size=1 << 16):
+                    fh.write(chunk)
+    except httpx.HTTPError as exc:
+        raise MediaError(
+            f"Could not download the media Meta pointed at ({exc}). These CDN links "
+            "expire quickly — a delayed retry will not help."
+        ) from exc
+
+    if video_path.stat().st_size == 0:
+        raise MediaError("Meta's media URL returned an empty file.")
+
+    return _render(video_path, workdir, {"title": title}, frame_count, max_duration_seconds)
+
+
+def _require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
         raise MediaError("ffmpeg is not installed or not on PATH.")
 
-    info, video_path = _download(url, workdir, cookies_file)
 
-    duration = info.get("duration")
+def _render(video_path: Path, workdir: Path, info: dict, frame_count: int,
+            max_duration_seconds: int) -> Media:
+    duration = info.get("duration") or _probe_duration(video_path)
     if duration and duration > max_duration_seconds:
         raise MediaError(
             f"Reel is {duration:.0f}s, longer than the {max_duration_seconds}s limit."
@@ -49,16 +89,27 @@ def fetch(url: str, workdir: Path, *, cookies_file: str | None, frame_count: int
         "extract audio",
     )
 
-    frames = _extract_frames(video_path, workdir, duration, frame_count)
-
     return Media(
         audio_path=audio_path,
-        frames=frames,
+        frames=_extract_frames(video_path, workdir, duration, frame_count),
         title=info.get("title"),
         description=info.get("description"),
         uploader=info.get("uploader") or info.get("channel"),
         duration=duration,
     )
+
+
+def _probe_duration(video_path: Path) -> float | None:
+    """A direct download carries no metadata, so ask the file itself."""
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(video_path)],
+        capture_output=True, text=True,
+    )
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        return None
 
 
 def _download(url: str, workdir: Path, cookies_file: str | None) -> tuple[dict, Path]:

@@ -4,6 +4,8 @@ from app.config import Settings
 from app.schemas import KeyFact, ReelNote
 
 API_KEY = "test-key-not-a-real-secret"
+IG_APP_SECRET = "test-app-secret"
+IG_VERIFY_TOKEN = "test-verify-token"
 
 
 @pytest.fixture
@@ -20,6 +22,11 @@ def settings(tmp_path) -> Settings:
         cookies_file=None,
         frame_count=2,
         max_duration_seconds=900,
+        ig_app_secret=IG_APP_SECRET,
+        ig_verify_token=IG_VERIFY_TOKEN,
+        ig_access_token="ig-access-token",
+        ig_api_base="https://graph.instagram.example",
+        ig_api_version="v23.0",
     )
 
 

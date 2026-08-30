@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,18 +7,19 @@ from app.config import get_settings
 from app.main import app, get_store
 from app.store import Store
 
-from .conftest import API_KEY, make_note
+from .conftest import API_KEY, IG_VERIFY_TOKEN, make_note
+from .test_instagram import sign, webhook_body
 
 
 @pytest.fixture
 def client(settings, monkeypatch):
     store = Store(settings.db_path)
-    started: list[tuple[str, str]] = []
+    started: list[tuple[str, object]] = []
 
     # The real pipeline downloads and transcribes; record the call instead.
     monkeypatch.setattr(
         "app.main.process",
-        lambda note_id, url, _settings, _store: started.append((note_id, url)),
+        lambda note_id, source, _settings, _store: started.append((note_id, source)),
     )
 
     app.dependency_overrides[get_settings] = lambda: settings
@@ -47,7 +50,13 @@ def test_ingest_returns_immediately_and_queues_the_work(client):
     assert response.status_code == 202
     note_id = response.json()["id"]
     assert response.json()["status"] == "pending"
-    assert client.started == [(note_id, "https://www.instagram.com/reel/ABC/")]
+    assert len(client.started) == 1
+    queued_id, source = client.started[0]
+    assert queued_id == note_id
+    assert source.page_url == "https://www.instagram.com/reel/ABC/"
+    # Share-sheet links have no media URL and nowhere to reply to.
+    assert source.media_url is None
+    assert source.reply_to is None
 
 
 def test_shared_text_around_the_url_is_tolerated(client):
@@ -58,7 +67,7 @@ def test_shared_text_around_the_url_is_tolerated(client):
     )
 
     assert response.status_code == 202
-    assert client.started[0][1] == "https://www.facebook.com/share/r/abc/"
+    assert client.started[0][1].page_url == "https://www.facebook.com/share/r/abc/"
 
 
 def test_text_with_no_url_is_rejected(client):
@@ -97,3 +106,66 @@ def test_search_narrows_the_listing(client):
 
 def test_unknown_note_is_404(client):
     assert client.get("/notes/nope", params={"k": API_KEY}).status_code == 404
+
+
+def test_webhook_handshake_echoes_the_challenge(client):
+    response = client.get(
+        "/webhook/instagram",
+        params={"hub.mode": "subscribe", "hub.verify_token": IG_VERIFY_TOKEN,
+                "hub.challenge": "42"},
+    )
+
+    assert response.status_code == 200
+    assert response.text == "42"
+
+
+def test_webhook_handshake_rejects_a_bad_token(client):
+    response = client.get(
+        "/webhook/instagram",
+        params={"hub.mode": "subscribe", "hub.verify_token": "nope", "hub.challenge": "42"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_unsigned_webhook_is_refused(client):
+    body = json.dumps(webhook_body(mid="m1", text="https://x.test/r")).encode()
+
+    response = client.post("/webhook/instagram", content=body,
+                           headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 403
+    assert client.started == []
+
+
+def test_shared_reel_is_queued_with_a_reply_target(client):
+    body = json.dumps(webhook_body(
+        mid="mid.reel.1",
+        attachments=[{"type": "ig_reel", "payload": {"url": "https://cdn.test/r.mp4"}}],
+    )).encode()
+
+    response = client.post(
+        "/webhook/instagram", content=body,
+        headers={"Content-Type": "application/json", "X-Hub-Signature-256": sign(body)},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"accepted": 1}
+    _, source = client.started[0]
+    assert source.media_url == "https://cdn.test/r.mp4"
+    assert source.reply_to == "9876543210"
+
+
+def test_a_retried_webhook_is_not_processed_twice(client):
+    body = json.dumps(webhook_body(
+        mid="mid.reel.dup",
+        attachments=[{"type": "ig_reel", "payload": {"url": "https://cdn.test/r.mp4"}}],
+    )).encode()
+    headers = {"Content-Type": "application/json", "X-Hub-Signature-256": sign(body)}
+
+    first = client.post("/webhook/instagram", content=body, headers=headers)
+    second = client.post("/webhook/instagram", content=body, headers=headers)
+
+    assert first.json() == {"accepted": 1}
+    assert second.json() == {"accepted": 0}
+    assert len(client.started) == 1

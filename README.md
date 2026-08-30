@@ -7,9 +7,11 @@ log and what's next, and [CHANGELOG.md](CHANGELOG.md) for what shipped when.
 ## Also in this repo
 
 [`reelnotes/`](reelnotes/README.md) is a separate side project that shares the
-repo but not the codebase: share an Instagram or Facebook reel to an iOS
-Shortcut and it transcribes the video, extracts a structured note, and pushes
-the takeaway to your phone. It has its own dependencies, tests, and CI job.
+repo but not the codebase: send an Instagram reel to it as a DM — the same
+gesture as sending it to a friend — and it transcribes the video, extracts a
+structured note, and replies in the thread with the takeaway. An iOS Shortcut
+covers links shared from outside Instagram. It has its own dependencies, tests,
+and CI job.
 
 ## Why
 

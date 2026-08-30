@@ -32,8 +32,14 @@ CREATE TABLE IF NOT EXISTS notes (
     uploader      TEXT,
     duration      REAL,
     thumbnail     BLOB,
-    error         TEXT
+    error         TEXT,
+    -- Meta's message id. Webhooks are retried, so this is what stops one
+    -- share from being downloaded, transcribed and billed twice.
+    source_mid    TEXT
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS notes_mid_idx ON notes(source_mid)
+    WHERE source_mid IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS notes_created_idx ON notes(created_at DESC);
 
@@ -67,14 +73,19 @@ class Store:
         finally:
             conn.close()
 
-    def create_pending(self, url: str) -> str:
+    def create_pending(self, url: str, *, mid: str | None = None) -> str | None:
+        """Returns None when `mid` was already accepted — a retried webhook."""
         note_id = uuid.uuid4().hex[:12]
         ts = _now()
-        with self._conn() as conn:
-            conn.execute(
-                "INSERT INTO notes (id, url, status, created_at, updated_at) VALUES (?,?,?,?,?)",
-                (note_id, url, "pending", ts, ts),
-            )
+        try:
+            with self._conn() as conn:
+                conn.execute(
+                    "INSERT INTO notes (id, url, status, created_at, updated_at, source_mid) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (note_id, url, "pending", ts, ts, mid),
+                )
+        except sqlite3.IntegrityError:
+            return None
         return note_id
 
     def mark_failed(self, note_id: str, error: str) -> None:

@@ -1,33 +1,58 @@
-"""url in, note out. The whole product is this function."""
+"""source in, note out. The whole product is this function."""
 
 from __future__ import annotations
 
 import logging
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from . import extract as extract_mod
+from . import instagram, notify, transcribe
 from . import media as media_mod
-from . import notify, transcribe
 from .config import Settings
 from .store import Store
 
 log = logging.getLogger(__name__)
 
 
-def process(note_id: str, url: str, settings: Settings, store: Store) -> None:
-    """Run one reel end to end. Never raises: failures are recorded and pushed."""
+@dataclass
+class Source:
+    """Where a reel came from, and where the answer should go back to.
+
+    `media_url` set means Meta handed us the file in a DM webhook — download it
+    directly. Otherwise we only have a page URL and have to scrape it.
+    """
+
+    page_url: str
+    media_url: str | None = None
+    reply_to: str | None = None
+    title: str | None = None
+
+
+def process(note_id: str, source: Source, settings: Settings, store: Store) -> None:
+    """Run one reel end to end. Never raises: failures are recorded and reported."""
     try:
         with tempfile.TemporaryDirectory(prefix="reelnotes-") as tmp:
             workdir = Path(tmp)
 
-            item = media_mod.fetch(
-                url,
-                workdir,
-                cookies_file=settings.cookies_file,
-                frame_count=settings.frame_count,
-                max_duration_seconds=settings.max_duration_seconds,
-            )
+            if source.media_url:
+                item = media_mod.fetch_direct(
+                    source.media_url,
+                    workdir,
+                    frame_count=settings.frame_count,
+                    max_duration_seconds=settings.max_duration_seconds,
+                    title=source.title,
+                )
+            else:
+                item = media_mod.fetch(
+                    source.page_url,
+                    workdir,
+                    cookies_file=settings.cookies_file,
+                    frame_count=settings.frame_count,
+                    max_duration_seconds=settings.max_duration_seconds,
+                )
+
             text = transcribe.transcribe(
                 item.audio_path,
                 backend=settings.asr_backend,
@@ -54,21 +79,46 @@ def process(note_id: str, url: str, settings: Settings, store: Store) -> None:
             duration=item.duration,
             thumbnail=thumbnail,
         )
-
-        if settings.push_enabled:
-            base = settings.public_base_url
-            click = f"{base}/notes/{note_id}" if base else None
-            notify.push_note(
-                note,
-                server=settings.ntfy_server,
-                topic=settings.ntfy_topic,
-                click_url=click,
-            )
+        _deliver(note_id, source, note, settings)
 
     except Exception as exc:
-        log.exception("Failed to process %s", url)
+        log.exception("Failed to process %s", source.page_url)
         store.mark_failed(note_id, str(exc))
-        if settings.push_enabled:
-            notify.push_failure(
-                url, str(exc), server=settings.ntfy_server, topic=settings.ntfy_topic
+        _deliver_failure(source, str(exc), settings)
+
+
+def _deliver(note_id: str, source: Source, note, settings: Settings) -> None:
+    base = settings.public_base_url
+    link = f"{base}/notes/{note_id}" if base else None
+
+    # Answering in the DM thread is the whole point of the Instagram path: the
+    # reply lands where the share happened, so nothing else has to be opened.
+    if source.reply_to:
+        try:
+            instagram.send_text(
+                source.reply_to, instagram.format_reply(note, link), settings
             )
+            return
+        except instagram.InstagramError:
+            log.exception("Could not reply in the DM thread; falling back to push")
+
+    if settings.push_enabled:
+        notify.push_note(
+            note, server=settings.ntfy_server, topic=settings.ntfy_topic, click_url=link
+        )
+
+
+def _deliver_failure(source: Source, error: str, settings: Settings) -> None:
+    if source.reply_to:
+        try:
+            instagram.send_text(
+                source.reply_to, f"Could not save that one: {error}"[:900], settings
+            )
+            return
+        except instagram.InstagramError:
+            log.exception("Could not report the failure in the DM thread")
+
+    if settings.push_enabled:
+        notify.push_failure(
+            source.page_url, error, server=settings.ntfy_server, topic=settings.ntfy_topic
+        )

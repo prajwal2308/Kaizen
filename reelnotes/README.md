@@ -1,24 +1,33 @@
 # Reel Notes
 
-Share a reel to it. Get the takeaway back as a notification. Never rewatch.
+Share a reel to it. Get the takeaway back. Never rewatch.
 
-This is the backend plus an iOS Shortcut — deliberately **not** an App Store app.
-It gives you the real share-sheet UX on your own iPhone today, with no Apple
-Developer account, no Mac, and no App Store review. When the habit proves out,
-the iOS app replaces the Shortcut and nothing here changes except `notify.py`.
+Deliberately **not** an App Store app. There are two ways in, and neither needs
+an Apple Developer account, a Mac, or App Store review.
+
+**1. Send it as a DM (best).** The account is an Instagram professional account.
+You share a reel to it exactly like sending it to a friend — same gesture, same
+place in the share sheet, never leaving Instagram — and the takeaway comes back
+as a reply in that same thread. Meta's webhook hands over the media directly, so
+there is no scraping and nothing to break.
+
+**2. The iOS share sheet (fallback).** A Shortcut posts the link to the server
+and closes instantly; the answer arrives as a push notification. This covers
+Facebook reels, and anything else with a URL.
 
 ## How it works
 
 ```
-iOS share sheet → Shortcut → POST /ingest → 202 immediately (share sheet closes)
-                                              │
-                            yt-dlp ───────────┤ download reel
-                            ffmpeg ───────────┤ 16 kHz mono audio + 4 stills
-                            whisper ──────────┤ transcript
-                            Claude ───────────┤ typed note (title, takeaways,
-                                              │   steps, key facts, caveats)
-                            SQLite + FTS5 ────┤ stored and searchable
-                            ntfy ─────────────┘ push to your lock screen
+ DM to the account ──► webhook ──┐        (Meta hands over the media URL)
+                                 ├─► 200/202 immediately, nothing to wait on
+ share sheet ─► Shortcut ─► /ingest ──┘   (yt-dlp scrapes the page URL)
+                                 │
+               ffmpeg ───────────┤ 16 kHz mono audio + 4 stills
+               whisper ──────────┤ transcript
+               Claude ───────────┤ typed note (title, takeaways,
+                                 │   steps, key facts, caveats)
+               SQLite + FTS5 ────┤ stored and searchable
+                                 └─► reply in the DM thread, or push via ntfy
 ```
 
 Two design decisions worth knowing:
@@ -34,16 +43,34 @@ you can follow without opening the video again.
 
 ## The honest caveat
 
-Meta offers no API that returns a third-party reel's media, so ingestion uses
-yt-dlp against URLs you already have access to. That means:
+The two paths have completely different risk profiles, which is why both exist.
 
-- It needs a logged-in cookie jar for most Instagram and Facebook links.
-- It will break periodically when Meta changes something. Budget for upkeep.
-- It is against Meta's ToS. Fine for archiving your own saves to your own
-  server; think hard before pointing it at other people.
+**The DM path is sanctioned.** Meta's webhook delivers an `ig_reel` attachment
+with a direct media URL. No scraping, no cookies, nothing that breaks when
+Instagram reshuffles its HTML. The real constraints are Meta's rules, not
+Meta's defences:
 
-Nothing here rehosts video. Only derived notes, one transcript, and one
-thumbnail per reel are stored.
+- An Instagram **professional** account (Business or Creator) is required.
+  Personal accounts have no messaging API.
+- **You can use it today for yourself.** Up to 25 test users work without App
+  Review — add your own account as a tester and it just works.
+- Going beyond that needs `instagram_business_manage_messages` at Advanced
+  Access, which means App Review (roughly 5–10 business days). This is the real
+  gate on other people using it, and it is worth knowing before you plan for
+  users.
+- The **24-hour window**: you may reply freely within 24 hours of someone's
+  message. Answering a reel they just sent is comfortably inside it. You cannot
+  message them unprompted days later.
+- The CDN URLs expire quickly, so the download happens immediately. A failed
+  fetch is not worth retrying later.
+
+**The share-sheet path is scraping.** yt-dlp against URLs you already have
+access to: needs a logged-in cookie jar, will break periodically, and is against
+Meta's ToS. Fine for archiving your own saves to your own server; think hard
+before pointing it at other people. Prefer the DM path wherever it works.
+
+Nothing here rehosts video on either path. Only derived notes, one transcript,
+and one thumbnail per reel are stored.
 
 ## Run it locally
 
@@ -61,6 +88,28 @@ Open `http://localhost:8000/?k=$REELNOTES_API_KEY`.
 `REELNOTES_API_KEY` is required — the service refuses to start without one. It
 downloads and transcribes whatever URL it is handed, so an unauthenticated
 instance is somebody else's free compute.
+
+## Setting up the DM path
+
+1. Convert the account you want to share to into an Instagram **professional**
+   account (Settings → Account type).
+2. Create an app at developers.facebook.com, add the **Instagram** product, and
+   connect that account.
+3. Add your own Instagram account as a **tester** on the app. This is what lets
+   you use it immediately without App Review.
+4. Subscribe a webhook to the `messages` field, pointing at
+   `https://your-app/webhook/instagram`. Paste your `IG_VERIFY_TOKEN` into the
+   console when it asks for a verify token — the `GET` handshake answers it.
+5. Copy the app secret into `IG_APP_SECRET` and a long-lived access token into
+   `IG_ACCESS_TOKEN`.
+
+Then share a reel to the account from your personal one. Every webhook is
+checked against `X-Hub-Signature-256` before anything is queued, and each
+message is deduplicated by its `mid` — Meta retries deliveries, and without that
+you would download, transcribe and pay for the same reel twice.
+
+If the send call is rejected, check `IG_API_VERSION` first; the endpoint shape
+moves between Graph versions and is config here, not code.
 
 ## Cookies
 
@@ -112,7 +161,8 @@ takeaway lands on your lock screen.
 
 ## Reading your notes
 
-- Notification → tap → the note.
+- The DM reply itself — title, takeaways, the steps, the numbers.
+- Notification → tap → the note (share-sheet path).
 - `https://your-app/?k=<key>` — newest first, with search that covers titles,
   takeaways, steps, key facts and the full transcript. Bookmark it to your home
   screen. (Newest first is not a feature so much as a correction.)
@@ -131,10 +181,11 @@ because Claude does not do speech-to-text.
 ## Deliberately not built yet
 
 Wait until the habit is proven before adding: a real job queue (background tasks
-run in-process, which is fine for one user), multi-user auth, the iOS app, and
-the finance-reel calculator that turns `steps` into inputs you can edit. The
-open question this is meant to answer is not "does it work" — it is whether you
-actually read the notifications.
+run in-process, which is fine for one user), multi-user auth, App Review for
+other people's accounts, the Facebook Page equivalent of the DM path, and the
+finance-reel calculator that turns `steps` into inputs you can edit. The open
+question this is meant to answer is not "does it work" — it is whether you
+actually read the replies.
 
 ## Tests
 
@@ -142,6 +193,7 @@ actually read the notifications.
 cd reelnotes && python -m pytest -q && python -m ruff check app tests
 ```
 
-The suite covers storage and search, the extraction request shape, and the HTTP
-surface. It does not cover the yt-dlp download — that depends on Meta's servers
-and a live session, so it fails loudly at runtime instead.
+The suite covers storage and search, the extraction request shape, webhook
+signature checking and payload parsing, delivery routing, and the HTTP surface.
+It does not cover the yt-dlp download or a live Meta webhook — both depend on
+Meta's servers, so they fail loudly at runtime instead.

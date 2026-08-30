@@ -37,9 +37,21 @@ class Settings:
     frame_count: int
     max_duration_seconds: int
 
+    # Instagram DM ingestion. Optional: without these the service still works
+    # through the iOS Shortcut, it just cannot receive or answer DMs.
+    ig_app_secret: str | None
+    ig_verify_token: str | None
+    ig_access_token: str | None
+    ig_api_base: str
+    ig_api_version: str
+
     @property
     def push_enabled(self) -> bool:
         return bool(self.ntfy_topic)
+
+    @property
+    def instagram_enabled(self) -> bool:
+        return bool(self.ig_app_secret and self.ig_verify_token and self.ig_access_token)
 
 
 @lru_cache(maxsize=1)
@@ -63,4 +75,9 @@ def get_settings() -> Settings:
         cookies_file=os.environ.get("YTDLP_COOKIES_FILE") or None,
         frame_count=int(os.environ.get("REELNOTES_FRAMES", "4")),
         max_duration_seconds=int(os.environ.get("REELNOTES_MAX_DURATION", "900")),
+        ig_app_secret=os.environ.get("IG_APP_SECRET") or None,
+        ig_verify_token=os.environ.get("IG_VERIFY_TOKEN") or None,
+        ig_access_token=os.environ.get("IG_ACCESS_TOKEN") or None,
+        ig_api_base=os.environ.get("IG_API_BASE", "https://graph.instagram.com").rstrip("/"),
+        ig_api_version=os.environ.get("IG_API_VERSION", "v23.0"),
     )

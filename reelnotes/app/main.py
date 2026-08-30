@@ -8,11 +8,12 @@ from functools import lru_cache
 from typing import Any
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, field_validator
 
+from . import instagram
 from .config import Settings, get_settings
-from .pipeline import process
+from .pipeline import Source, process
 from .store import Store
 
 app = FastAPI(title="Reel Notes", docs_url=None, redoc_url=None)
@@ -62,8 +63,65 @@ def ingest(
 ) -> JSONResponse:
     """Accept and return immediately — the share sheet must never wait on us."""
     note_id = store.create_pending(payload.url)
-    background.add_task(process, note_id, payload.url, settings, store)
+    background.add_task(process, note_id, Source(page_url=payload.url), settings, store)
     return JSONResponse({"id": note_id, "status": "pending"}, status_code=202)
+
+
+@app.get("/webhook/instagram", response_class=PlainTextResponse)
+def webhook_verify(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> PlainTextResponse:
+    """Meta's one-time subscription handshake."""
+    params = request.query_params
+    try:
+        challenge = instagram.verify_subscription(
+            params.get("hub.mode"),
+            params.get("hub.verify_token"),
+            params.get("hub.challenge"),
+            settings,
+        )
+    except instagram.InstagramError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return PlainTextResponse(challenge)
+
+
+@app.post("/webhook/instagram")
+async def webhook_receive(
+    request: Request,
+    background: BackgroundTasks,
+    settings: Settings = Depends(get_settings),
+    store: Store = Depends(get_store),
+) -> JSONResponse:
+    """Someone shared a reel to the account. Ack fast, work afterwards.
+
+    Meta retries anything that is slow or non-200, so this must never wait on
+    the pipeline — and every accepted message is deduplicated by its mid.
+    """
+    raw = await request.body()
+    if not instagram.verify_signature(raw, request.headers.get("x-hub-signature-256"), settings):
+        raise HTTPException(status_code=403, detail="Bad webhook signature.")
+
+    accepted = 0
+    for reel in instagram.parse_events(await request.json()):
+        note_id = store.create_pending(reel.reference, mid=reel.mid)
+        if note_id is None:
+            continue  # already handled this share on an earlier delivery
+        background.add_task(
+            process,
+            note_id,
+            Source(
+                page_url=reel.reference,
+                media_url=reel.media_url,
+                reply_to=reel.sender_id,
+                title=reel.title,
+            ),
+            settings,
+            store,
+        )
+        accepted += 1
+
+    return JSONResponse({"accepted": accepted})
 
 
 @app.get("/api/notes", dependencies=[Depends(require_key)])
