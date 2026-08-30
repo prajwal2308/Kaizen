@@ -4,6 +4,13 @@ A local-first CLI for tasks, journaling, and daily review — built one small,
 real increment at a time. See [ROADMAP.md](ROADMAP.md) for the running build
 log and what's next, and [CHANGELOG.md](CHANGELOG.md) for what shipped when.
 
+## Also in this repo
+
+[`reelnotes/`](reelnotes/README.md) is a separate side project that shares the
+repo but not the codebase: share an Instagram or Facebook reel to an iOS
+Shortcut and it transcribes the video, extracts a structured note, and pushes
+the takeaway to your phone. It has its own dependencies, tests, and CI job.
+
 ## Why
 
 Kaizen (改善) means "continuous improvement." This project is exactly that:

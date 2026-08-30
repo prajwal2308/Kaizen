@@ -22,3 +22,22 @@ jobs:
         run: ruff check src tests
       - name: Test
         run: pytest -q
+
+  reelnotes:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reelnotes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        # yt-dlp, faster-whisper and anthropic are imported lazily and are not
+        # exercised by the suite, so the CI install stays small.
+        run: pip install "fastapi>=0.110" "pydantic>=2.6" "httpx>=0.27" pytest ruff
+      - name: Lint
+        run: ruff check app tests
+      - name: Test
+        run: pytest -q
