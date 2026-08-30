@@ -4,7 +4,7 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
-from kaizen.storage import PRIORITIES, Task, TaskStore, is_overdue, priority_rank
+from onepact.storage import PRIORITIES, Task, TaskStore, is_overdue, priority_rank
 
 
 def _parse_due(value: str) -> str:
@@ -116,7 +116,7 @@ def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="kaizen", description="A local-first task and journal CLI."
+        prog="onepact", description="A local-first task and journal CLI."
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

@@ -1,4 +1,4 @@
-from kaizen.storage import Task, TaskStore, is_overdue, priority_rank
+from onepact.storage import Task, TaskStore, is_overdue, priority_rank
 
 
 def test_task_defaults_to_med_priority():

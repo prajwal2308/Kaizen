@@ -1,12 +1,12 @@
 import pytest
 
-from kaizen.cli import main
-from kaizen.storage import TaskStore
+from onepact.cli import main
+from onepact.storage import TaskStore
 
 
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
-    monkeypatch.setattr("kaizen.cli.TaskStore", lambda: TaskStore(data_dir=tmp_path))
+    monkeypatch.setattr("onepact.cli.TaskStore", lambda: TaskStore(data_dir=tmp_path))
 
 
 def test_add_and_list(capsys):

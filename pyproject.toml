@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kaizen"
+name = "onepact"
 version = "0.1.0"
 description = "A local-first CLI for tasks, journaling, and daily review."
 readme = "README.md"
@@ -13,7 +13,7 @@ authors = [{ name = "Prajwal Srinivas" }]
 dependencies = []
 
 [project.scripts]
-kaizen = "kaizen.cli:main"
+onepact = "onepact.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

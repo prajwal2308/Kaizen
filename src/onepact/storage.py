@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def _default_data_dir() -> Path:
-    return Path.home() / ".kaizen"
+    return Path.home() / ".onepact"
 
 
 DATA_DIR = _default_data_dir()
