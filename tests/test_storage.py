@@ -1,4 +1,4 @@
-from onepact.storage import Task, TaskStore, is_overdue, priority_rank
+from onepact.storage import Entry, JournalStore, Task, TaskStore, is_overdue, priority_rank
 
 
 def test_task_defaults_to_med_priority():
@@ -84,3 +84,44 @@ def test_next_id_increments_from_max(tmp_path):
     store = TaskStore(data_dir=tmp_path)
     assert store.next_id([]) == 1
     assert store.next_id([Task(id=1, title="a"), Task(id=5, title="b")]) == 6
+
+
+def test_entry_has_created_at_timestamp():
+    entry = Entry(id=1, body="wrote some tests today")
+    assert entry.created_at
+
+
+def test_entry_from_dict_defaults_created_at_when_missing():
+    entry = Entry.from_dict({"id": 1, "body": "legacy entry"})
+    assert entry.created_at == ""
+
+
+def test_journal_load_empty_when_no_file(tmp_path):
+    store = JournalStore(data_dir=tmp_path)
+    assert store.load() == []
+
+
+def test_journal_save_and_load_round_trip(tmp_path):
+    store = JournalStore(data_dir=tmp_path)
+    entries = [Entry(id=1, body="first entry"), Entry(id=2, body="second entry")]
+    store.save(entries)
+
+    loaded = store.load()
+
+    assert [e.body for e in loaded] == ["first entry", "second entry"]
+
+
+def test_journal_next_id_increments_from_max(tmp_path):
+    store = JournalStore(data_dir=tmp_path)
+    assert store.next_id([]) == 1
+    assert store.next_id([Entry(id=1, body="a"), Entry(id=5, body="b")]) == 6
+
+
+def test_journal_store_is_independent_of_task_store(tmp_path):
+    task_store = TaskStore(data_dir=tmp_path)
+    journal_store = JournalStore(data_dir=tmp_path)
+    task_store.save([Task(id=1, title="a task")])
+    journal_store.save([Entry(id=1, body="an entry")])
+
+    assert [t.title for t in task_store.load()] == ["a task"]
+    assert [e.body for e in journal_store.load()] == ["an entry"]

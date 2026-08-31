@@ -12,6 +12,7 @@ def _default_data_dir() -> Path:
 
 DATA_DIR = _default_data_dir()
 DATA_FILE = "tasks.json"
+JOURNAL_FILE = "journal.json"
 
 PRIORITIES = ("low", "med", "high")
 DEFAULT_PRIORITY = "med"
@@ -80,3 +81,44 @@ class TaskStore:
 
     def next_id(self, tasks: list[Task]) -> int:
         return max((t.id for t in tasks), default=0) + 1
+
+
+@dataclass
+class Entry:
+    id: int
+    body: str
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Entry:
+        return cls(
+            id=data["id"],
+            body=data["body"],
+            created_at=data.get("created_at", ""),
+        )
+
+
+class JournalStore:
+    """Persists journal entries as JSON in their own file, separate from tasks."""
+
+    def __init__(self, data_dir: Path | None = None):
+        self.data_dir = data_dir or DATA_DIR
+        self.path = self.data_dir / JOURNAL_FILE
+
+    def load(self) -> list[Entry]:
+        if not self.path.exists():
+            return []
+        with self.path.open("r", encoding="utf-8") as f:
+            raw = json.load(f)
+        return [Entry.from_dict(item) for item in raw]
+
+    def save(self, entries: list[Entry]) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as f:
+            json.dump([e.to_dict() for e in entries], f, indent=2)
+
+    def next_id(self, entries: list[Entry]) -> int:
+        return max((e.id for e in entries), default=0) + 1
