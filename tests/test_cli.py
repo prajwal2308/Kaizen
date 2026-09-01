@@ -1,12 +1,13 @@
 import pytest
 
 from onepact.cli import main
-from onepact.storage import TaskStore
+from onepact.storage import JournalStore, TaskStore
 
 
 @pytest.fixture(autouse=True)
 def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr("onepact.cli.TaskStore", lambda: TaskStore(data_dir=tmp_path))
+    monkeypatch.setattr("onepact.cli.JournalStore", lambda: JournalStore(data_dir=tmp_path))
 
 
 def test_add_and_list(capsys):
@@ -194,3 +195,32 @@ def test_rm_removes_task(capsys):
 
 def test_rm_unknown_id_errors():
     assert main(["rm", "999"]) == 1
+
+
+def test_journal_appends_entry(capsys, tmp_path):
+    assert main(["journal", "wrote some code today"]) == 0
+    out = capsys.readouterr().out
+    assert "Journaled #1" in out
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert len(entries) == 1
+    assert entries[0].body == "wrote some code today"
+
+
+def test_journal_entries_get_incrementing_ids(tmp_path):
+    main(["journal", "first"])
+    main(["journal", "second"])
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert [e.id for e in entries] == [1, 2]
+    assert [e.body for e in entries] == ["first", "second"]
+
+
+def test_journal_does_not_affect_task_list(capsys):
+    main(["add", "a task"])
+    main(["journal", "an entry"])
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "a task" in out

@@ -4,7 +4,15 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
-from onepact.storage import PRIORITIES, Task, TaskStore, is_overdue, priority_rank
+from onepact.storage import (
+    PRIORITIES,
+    Entry,
+    JournalStore,
+    Task,
+    TaskStore,
+    is_overdue,
+    priority_rank,
+)
 
 
 def _parse_due(value: str) -> str:
@@ -103,6 +111,15 @@ def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
+    entries = store.load()
+    entry = Entry(id=store.next_id(entries), body=args.text)
+    entries.append(entry)
+    store.save(entries)
+    print(f"Journaled #{entry.id}")
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -165,13 +182,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm.add_argument("id", type=int, help="Task id")
     p_rm.set_defaults(func=cmd_rm)
 
+    p_journal = sub.add_parser("journal", help="Append a journal entry")
+    p_journal.add_argument("text", help="Journal entry text")
+    p_journal.set_defaults(func=cmd_journal, store_type="journal")
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    store = TaskStore()
+    store = JournalStore() if getattr(args, "store_type", "task") == "journal" else TaskStore()
     return args.func(store, args)
 
 

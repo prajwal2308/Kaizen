@@ -30,7 +30,7 @@ new batch of items in this same format, and start on the first one.
 ## Phase 2 — Journaling
 
 - [x] 11. `Entry` model (id, timestamp, body) + `JournalStore` (separate JSON file)
-- [ ] 12. `onepact journal "free text entry"` appends an entry
+- [x] 12. `onepact journal "free text entry"` appends an entry
 - [ ] 13. `onepact journal` with no args opens `$EDITOR` for a longer entry
 - [ ] 14. `onepact journal list` — most recent entries first, with `--limit`
 - [ ] 15. `onepact journal show <id>`
