@@ -16,6 +16,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `kaizen show <id>` — full detail view of a single task (status, priority, due date with overdue flag, tags, created/completed timestamps).
 - `Entry` model and JSON-backed `JournalStore` (load/save/next_id) in `src/onepact/storage.py`, storing journal entries in their own `journal.json`, separate from tasks. First step of Phase 2 (Journaling); no CLI command yet.
 - `onepact journal "free text entry"` command that appends a new entry to the journal.
+- `onepact journal` with no text argument now opens `$EDITOR` (falling back to `$VISUAL`, then `vi`) for a longer entry; empty entries are discarded rather than saved.
 
 ## [0.1.0] - 2026-08-26
 

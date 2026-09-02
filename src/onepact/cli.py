@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 from onepact.storage import (
@@ -111,9 +114,33 @@ def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
     return 1
 
 
+def _read_entry_from_editor() -> str:
+    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "vi"
+    fd, tmp_path = tempfile.mkstemp(suffix=".md", prefix="onepact-journal-")
+    os.close(fd)
+    try:
+        subprocess.run([editor, tmp_path], check=True)
+        with open(tmp_path, encoding="utf-8") as f:
+            return f.read()
+    finally:
+        os.remove(tmp_path)
+
+
 def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
+    if args.text is not None:
+        body = args.text
+    else:
+        try:
+            body = _read_entry_from_editor()
+        except (OSError, subprocess.CalledProcessError) as exc:
+            print(f"Could not open editor: {exc}", file=sys.stderr)
+            return 1
+    body = body.strip()
+    if not body:
+        print("Empty entry, nothing journaled.", file=sys.stderr)
+        return 1
     entries = store.load()
-    entry = Entry(id=store.next_id(entries), body=args.text)
+    entry = Entry(id=store.next_id(entries), body=body)
     entries.append(entry)
     store.save(entries)
     print(f"Journaled #{entry.id}")
@@ -183,7 +210,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm.set_defaults(func=cmd_rm)
 
     p_journal = sub.add_parser("journal", help="Append a journal entry")
-    p_journal.add_argument("text", help="Journal entry text")
+    p_journal.add_argument(
+        "text",
+        nargs="?",
+        default=None,
+        help="Journal entry text (omit to write a longer entry in $EDITOR)",
+    )
     p_journal.set_defaults(func=cmd_journal, store_type="journal")
 
     return parser

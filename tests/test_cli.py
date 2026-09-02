@@ -224,3 +224,41 @@ def test_journal_does_not_affect_task_list(capsys):
     main(["list"])
     out = capsys.readouterr().out
     assert "a task" in out
+
+
+def test_journal_without_text_opens_editor(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr(
+        "onepact.cli._read_entry_from_editor", lambda: "a longer entry\nwritten in $EDITOR\n"
+    )
+
+    assert main(["journal"]) == 0
+    out = capsys.readouterr().out
+    assert "Journaled #1" in out
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].body == "a longer entry\nwritten in $EDITOR"
+
+
+def test_journal_empty_editor_entry_aborts(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda: "   \n")
+
+    assert main(["journal"]) == 1
+    err = capsys.readouterr().err
+    assert "Empty entry" in err
+    assert JournalStore(data_dir=tmp_path).load() == []
+
+
+def test_journal_whitespace_only_text_aborts(tmp_path):
+    assert main(["journal", "   "]) == 1
+    assert JournalStore(data_dir=tmp_path).load() == []
+
+
+def test_journal_editor_failure_reported(monkeypatch, capsys):
+    def _boom():
+        raise OSError("no such editor")
+
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", _boom)
+
+    assert main(["journal"]) == 1
+    err = capsys.readouterr().err
+    assert "Could not open editor" in err
