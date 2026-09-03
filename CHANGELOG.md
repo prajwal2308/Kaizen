@@ -17,6 +17,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `Entry` model and JSON-backed `JournalStore` (load/save/next_id) in `src/onepact/storage.py`, storing journal entries in their own `journal.json`, separate from tasks. First step of Phase 2 (Journaling); no CLI command yet.
 - `onepact journal "free text entry"` command that appends a new entry to the journal.
 - `onepact journal` with no text argument now opens `$EDITOR` (falling back to `$VISUAL`, then `vi`) for a longer entry; empty entries are discarded rather than saved.
+- `onepact journal list` — shows journal entries most recent first (one line each, first line only for multi-line entries), with `--limit N` to cap how many are shown. `journal` is now a command group internally (`add` runs implicitly when the first word after `journal` isn't a known subcommand, so `onepact journal "text"` keeps working unchanged).
 
 ## [0.1.0] - 2026-08-26
 

@@ -28,6 +28,18 @@ def _parse_due(value: str) -> str:
     return value
 
 
+def _positive_int(value: str) -> int:
+    try:
+        n = int(value)
+    except ValueError:
+        n = None
+    if n is None or n < 1:
+        raise argparse.ArgumentTypeError(
+            f"invalid limit {value!r}, expected a positive integer"
+        )
+    return n
+
+
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     tags = list(dict.fromkeys(args.tags or []))
@@ -147,6 +159,19 @@ def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
+    entries = list(reversed(store.load()))
+    if args.limit is not None:
+        entries = entries[: args.limit]
+    if not entries:
+        print("No journal entries.")
+        return 0
+    for e in entries:
+        first_line = e.body.splitlines()[0] if e.body else ""
+        print(f"#{e.id} [{e.created_at}] {first_line}")
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -209,19 +234,44 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm.add_argument("id", type=int, help="Task id")
     p_rm.set_defaults(func=cmd_rm)
 
-    p_journal = sub.add_parser("journal", help="Append a journal entry")
-    p_journal.add_argument(
+    p_journal = sub.add_parser("journal", help="Manage journal entries")
+    journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)
+
+    p_journal_add = journal_sub.add_parser("add", help="Append a journal entry")
+    p_journal_add.add_argument(
         "text",
         nargs="?",
         default=None,
         help="Journal entry text (omit to write a longer entry in $EDITOR)",
     )
-    p_journal.set_defaults(func=cmd_journal, store_type="journal")
+    p_journal_add.set_defaults(func=cmd_journal, store_type="journal")
+
+    p_journal_list = journal_sub.add_parser(
+        "list", help="List journal entries, most recent first"
+    )
+    p_journal_list.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=None,
+        help="Show at most this many entries",
+    )
+    p_journal_list.set_defaults(func=cmd_journal_list, store_type="journal")
 
     return parser
 
 
+_JOURNAL_SUBCOMMANDS = {"add", "list"}
+
+
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    argv = list(argv)
+    if argv and argv[0] == "journal":
+        rest = argv[1:]
+        if not rest or rest[0] not in _JOURNAL_SUBCOMMANDS:
+            argv = ["journal", "add", *rest]
+
     parser = build_parser()
     args = parser.parse_args(argv)
     store = JournalStore() if getattr(args, "store_type", "task") == "journal" else TaskStore()

@@ -262,3 +262,55 @@ def test_journal_editor_failure_reported(monkeypatch, capsys):
     assert main(["journal"]) == 1
     err = capsys.readouterr().err
     assert "Could not open editor" in err
+
+
+def test_journal_list_empty(capsys):
+    assert main(["journal", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "No journal entries." in out
+
+
+def test_journal_list_shows_most_recent_first(capsys):
+    main(["journal", "first entry"])
+    main(["journal", "second entry"])
+    main(["journal", "third entry"])
+    capsys.readouterr()
+
+    main(["journal", "list"])
+    out = capsys.readouterr().out
+    assert out.index("third entry") < out.index("second entry") < out.index("first entry")
+
+
+def test_journal_list_respects_limit(capsys):
+    main(["journal", "first entry"])
+    main(["journal", "second entry"])
+    main(["journal", "third entry"])
+    capsys.readouterr()
+
+    main(["journal", "list", "--limit", "2"])
+    out = capsys.readouterr().out
+    assert "third entry" in out
+    assert "second entry" in out
+    assert "first entry" not in out
+
+
+def test_journal_list_shows_only_first_line_of_multiline_entry(capsys, tmp_path):
+    main(["journal", "line one"])
+    capsys.readouterr()
+
+    store = JournalStore(data_dir=tmp_path)
+    entries = store.load()
+    entries[0].body = "line one\nline two"
+    store.save(entries)
+
+    main(["journal", "list"])
+    out = capsys.readouterr().out
+    assert "line one" in out
+    assert "line two" not in out
+
+
+def test_journal_list_invalid_limit_errors():
+    with pytest.raises(SystemExit):
+        main(["journal", "list", "--limit", "0"])
+    with pytest.raises(SystemExit):
+        main(["journal", "list", "--limit", "not-a-number"])
