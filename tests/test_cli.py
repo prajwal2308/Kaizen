@@ -314,3 +314,32 @@ def test_journal_list_invalid_limit_errors():
         main(["journal", "list", "--limit", "0"])
     with pytest.raises(SystemExit):
         main(["journal", "list", "--limit", "not-a-number"])
+
+
+def test_journal_show_displays_full_entry(capsys):
+    main(["journal", "wrote some tests today"])
+    capsys.readouterr()
+
+    assert main(["journal", "show", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "#1 [" in out
+    assert "wrote some tests today" in out
+
+
+def test_journal_show_displays_full_multiline_body(capsys, tmp_path):
+    main(["journal", "line one"])
+    capsys.readouterr()
+
+    store = JournalStore(data_dir=tmp_path)
+    entries = store.load()
+    entries[0].body = "line one\nline two"
+    store.save(entries)
+
+    main(["journal", "show", "1"])
+    out = capsys.readouterr().out
+    assert "line one" in out
+    assert "line two" in out
+
+
+def test_journal_show_unknown_id_errors():
+    assert main(["journal", "show", "999"]) == 1

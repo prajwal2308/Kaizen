@@ -172,6 +172,17 @@ def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_journal_show(store: JournalStore, args: argparse.Namespace) -> int:
+    entries = store.load()
+    for e in entries:
+        if e.id == args.id:
+            print(f"#{e.id} [{e.created_at}]")
+            print(e.body)
+            return 0
+    print(f"No journal entry with id {args.id}", file=sys.stderr)
+    return 1
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -257,10 +268,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_journal_list.set_defaults(func=cmd_journal_list, store_type="journal")
 
+    p_journal_show = journal_sub.add_parser("show", help="Show a single journal entry")
+    p_journal_show.add_argument("id", type=int, help="Entry id")
+    p_journal_show.set_defaults(func=cmd_journal_show, store_type="journal")
+
     return parser
 
 
-_JOURNAL_SUBCOMMANDS = {"add", "list"}
+_JOURNAL_SUBCOMMANDS = {"add", "list", "show"}
 
 
 def main(argv: list[str] | None = None) -> int:

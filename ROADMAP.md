@@ -33,7 +33,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 12. `onepact journal "free text entry"` appends an entry
 - [x] 13. `onepact journal` with no args opens `$EDITOR` for a longer entry
 - [x] 14. `onepact journal list` — most recent entries first, with `--limit`
-- [ ] 15. `onepact journal show <id>`
+- [x] 15. `onepact journal show <id>`
 - [ ] 16. Link a journal entry to a task: `--task <id>` on `journal`
 - [ ] 17. `onepact journal search <text>` — substring search across entries
 - [ ] 18. Tests for all journal commands
