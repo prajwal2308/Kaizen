@@ -96,6 +96,20 @@ def test_entry_from_dict_defaults_created_at_when_missing():
     assert entry.created_at == ""
 
 
+def test_entry_task_id_defaults_to_none():
+    assert Entry(id=1, body="a").task_id is None
+
+
+def test_entry_from_dict_defaults_task_id_when_missing():
+    entry = Entry.from_dict({"id": 1, "body": "legacy entry"})
+    assert entry.task_id is None
+
+
+def test_entry_from_dict_reads_task_id():
+    entry = Entry.from_dict({"id": 1, "body": "a", "task_id": 3})
+    assert entry.task_id == 3
+
+
 def test_journal_load_empty_when_no_file(tmp_path):
     store = JournalStore(data_dir=tmp_path)
     assert store.load() == []

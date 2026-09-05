@@ -151,11 +151,16 @@ def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
     if not body:
         print("Empty entry, nothing journaled.", file=sys.stderr)
         return 1
+    task_id = args.task
+    if task_id is not None and not any(t.id == task_id for t in TaskStore().load()):
+        print(f"No task with id {task_id}", file=sys.stderr)
+        return 1
     entries = store.load()
-    entry = Entry(id=store.next_id(entries), body=body)
+    entry = Entry(id=store.next_id(entries), body=body, task_id=task_id)
     entries.append(entry)
     store.save(entries)
-    print(f"Journaled #{entry.id}")
+    suffix = f" (linked to task #{task_id})" if task_id is not None else ""
+    print(f"Journaled #{entry.id}{suffix}")
     return 0
 
 
@@ -168,7 +173,10 @@ def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
         return 0
     for e in entries:
         first_line = e.body.splitlines()[0] if e.body else ""
-        print(f"#{e.id} [{e.created_at}] {first_line}")
+        line = f"#{e.id} [{e.created_at}] {first_line}"
+        if e.task_id is not None:
+            line += f" [task #{e.task_id}]"
+        print(line)
     return 0
 
 
@@ -177,6 +185,7 @@ def cmd_journal_show(store: JournalStore, args: argparse.Namespace) -> int:
     for e in entries:
         if e.id == args.id:
             print(f"#{e.id} [{e.created_at}]")
+            print(f"Task: #{e.task_id}" if e.task_id is not None else "Task: (none)")
             print(e.body)
             return 0
     print(f"No journal entry with id {args.id}", file=sys.stderr)
@@ -254,6 +263,12 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="?",
         default=None,
         help="Journal entry text (omit to write a longer entry in $EDITOR)",
+    )
+    p_journal_add.add_argument(
+        "--task",
+        type=int,
+        default=None,
+        help="Link this entry to task <id>",
     )
     p_journal_add.set_defaults(func=cmd_journal, store_type="journal")
 

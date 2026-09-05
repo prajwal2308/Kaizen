@@ -88,6 +88,7 @@ class Entry:
     id: int
     body: str
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    task_id: int | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -98,6 +99,7 @@ class Entry:
             id=data["id"],
             body=data["body"],
             created_at=data.get("created_at", ""),
+            task_id=data.get("task_id"),
         )
 
 

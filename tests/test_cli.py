@@ -343,3 +343,51 @@ def test_journal_show_displays_full_multiline_body(capsys, tmp_path):
 
 def test_journal_show_unknown_id_errors():
     assert main(["journal", "show", "999"]) == 1
+
+
+def test_journal_add_with_task_links_entry(capsys, tmp_path):
+    main(["add", "write the report"])
+    capsys.readouterr()
+
+    assert main(["journal", "finished a draft", "--task", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "linked to task #1" in out
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].task_id == 1
+
+
+def test_journal_add_with_unknown_task_errors(capsys, tmp_path):
+    assert main(["journal", "orphaned note", "--task", "999"]) == 1
+    err = capsys.readouterr().err
+    assert "No task with id 999" in err
+    assert JournalStore(data_dir=tmp_path).load() == []
+
+
+def test_journal_list_shows_linked_task(capsys):
+    main(["add", "write the report"])
+    main(["journal", "finished a draft", "--task", "1"])
+    capsys.readouterr()
+
+    main(["journal", "list"])
+    out = capsys.readouterr().out
+    assert "[task #1]" in out
+
+
+def test_journal_show_displays_linked_task(capsys):
+    main(["add", "write the report"])
+    main(["journal", "finished a draft", "--task", "1"])
+    capsys.readouterr()
+
+    main(["journal", "show", "1"])
+    out = capsys.readouterr().out
+    assert "Task: #1" in out
+
+
+def test_journal_show_displays_no_task_when_unlinked(capsys):
+    main(["journal", "a standalone note"])
+    capsys.readouterr()
+
+    main(["journal", "show", "1"])
+    out = capsys.readouterr().out
+    assert "Task: (none)" in out
