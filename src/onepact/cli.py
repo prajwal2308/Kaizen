@@ -164,6 +164,14 @@ def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def _format_entry_line(e: Entry) -> str:
+    first_line = e.body.splitlines()[0] if e.body else ""
+    line = f"#{e.id} [{e.created_at}] {first_line}"
+    if e.task_id is not None:
+        line += f" [task #{e.task_id}]"
+    return line
+
+
 def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
     entries = list(reversed(store.load()))
     if args.limit is not None:
@@ -172,11 +180,19 @@ def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
         print("No journal entries.")
         return 0
     for e in entries:
-        first_line = e.body.splitlines()[0] if e.body else ""
-        line = f"#{e.id} [{e.created_at}] {first_line}"
-        if e.task_id is not None:
-            line += f" [task #{e.task_id}]"
-        print(line)
+        print(_format_entry_line(e))
+    return 0
+
+
+def cmd_journal_search(store: JournalStore, args: argparse.Namespace) -> int:
+    entries = list(reversed(store.load()))
+    query = args.text.lower()
+    matches = [e for e in entries if query in e.body.lower()]
+    if not matches:
+        print("No matching journal entries.")
+        return 0
+    for e in matches:
+        print(_format_entry_line(e))
     return 0
 
 
@@ -287,10 +303,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_journal_show.add_argument("id", type=int, help="Entry id")
     p_journal_show.set_defaults(func=cmd_journal_show, store_type="journal")
 
+    p_journal_search = journal_sub.add_parser(
+        "search", help="Search journal entries by substring"
+    )
+    p_journal_search.add_argument("text", help="Substring to search for (case-insensitive)")
+    p_journal_search.set_defaults(func=cmd_journal_search, store_type="journal")
+
     return parser
 
 
-_JOURNAL_SUBCOMMANDS = {"add", "list", "show"}
+_JOURNAL_SUBCOMMANDS = {"add", "list", "show", "search"}
 
 
 def main(argv: list[str] | None = None) -> int:

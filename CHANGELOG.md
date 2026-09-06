@@ -20,6 +20,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `onepact journal list` — shows journal entries most recent first (one line each, first line only for multi-line entries), with `--limit N` to cap how many are shown. `journal` is now a command group internally (`add` runs implicitly when the first word after `journal` isn't a known subcommand, so `onepact journal "text"` keeps working unchanged).
 - `onepact journal show <id>` — full detail view of a single journal entry (id, timestamp, complete body).
 - `--task <id>` on `onepact journal` links a new entry to an existing task; rejects unknown task ids without saving the entry. `journal list` and `journal show` display the linked task when present.
+- `onepact journal search <text>` — case-insensitive substring search across journal entry bodies, most recent match first.
 
 ## [0.1.0] - 2026-08-26
 

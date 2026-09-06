@@ -391,3 +391,45 @@ def test_journal_show_displays_no_task_when_unlinked(capsys):
     main(["journal", "show", "1"])
     out = capsys.readouterr().out
     assert "Task: (none)" in out
+
+
+def test_journal_search_finds_matching_entries(capsys):
+    main(["journal", "wrote the onboarding docs"])
+    main(["journal", "fixed a bug in the parser"])
+    main(["journal", "reviewed the docs one more time"])
+    capsys.readouterr()
+
+    main(["journal", "search", "docs"])
+    out = capsys.readouterr().out
+    assert "onboarding docs" in out
+    assert "reviewed the docs" in out
+    assert "fixed a bug" not in out
+
+
+def test_journal_search_is_case_insensitive(capsys):
+    main(["journal", "Wrote the ONBOARDING docs"])
+    capsys.readouterr()
+
+    main(["journal", "search", "onboarding"])
+    out = capsys.readouterr().out
+    assert "Wrote the ONBOARDING docs" in out
+
+
+def test_journal_search_shows_most_recent_match_first(capsys):
+    main(["journal", "docs pass one"])
+    main(["journal", "unrelated entry"])
+    main(["journal", "docs pass two"])
+    capsys.readouterr()
+
+    main(["journal", "search", "docs"])
+    out = capsys.readouterr().out
+    assert out.index("docs pass two") < out.index("docs pass one")
+
+
+def test_journal_search_no_matches(capsys):
+    main(["journal", "an entry about cooking"])
+    capsys.readouterr()
+
+    assert main(["journal", "search", "gardening"]) == 0
+    out = capsys.readouterr().out
+    assert "No matching journal entries." in out

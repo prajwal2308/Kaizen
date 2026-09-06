@@ -35,7 +35,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 14. `onepact journal list` — most recent entries first, with `--limit`
 - [x] 15. `onepact journal show <id>`
 - [x] 16. Link a journal entry to a task: `--task <id>` on `journal`
-- [ ] 17. `onepact journal search <text>` — substring search across entries
+- [x] 17. `onepact journal search <text>` — substring search across entries
 - [ ] 18. Tests for all journal commands
 - [ ] 19. README section documenting journaling workflow
 - [ ] 20. `onepact journal rm <id>` with confirmation prompt (skippable via `--yes`)
