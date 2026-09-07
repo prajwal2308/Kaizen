@@ -1,6 +1,8 @@
+import os
+
 import pytest
 
-from onepact.cli import main
+from onepact.cli import _read_entry_from_editor, main
 from onepact.storage import JournalStore, TaskStore
 
 
@@ -433,3 +435,70 @@ def test_journal_search_no_matches(capsys):
     assert main(["journal", "search", "gardening"]) == 0
     out = capsys.readouterr().out
     assert "No matching journal entries." in out
+
+
+def test_journal_search_on_empty_store(capsys):
+    assert main(["journal", "search", "anything"]) == 0
+    out = capsys.readouterr().out
+    assert "No matching journal entries." in out
+
+
+def test_journal_add_explicit_keyword_still_works(capsys, tmp_path):
+    assert main(["journal", "add", "explicit add keyword"]) == 0
+    out = capsys.readouterr().out
+    assert "Journaled #1" in out
+    assert JournalStore(data_dir=tmp_path).load()[0].body == "explicit add keyword"
+
+
+def test_journal_editor_entry_can_link_to_task(monkeypatch, capsys, tmp_path):
+    main(["add", "write the report"])
+    capsys.readouterr()
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda: "drafted it\n")
+
+    assert main(["journal", "--task", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "linked to task #1" in out
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].body == "drafted it"
+    assert entries[0].task_id == 1
+
+
+def test_read_entry_from_editor_prefers_EDITOR_over_VISUAL(tmp_path, monkeypatch):
+    editor_script = tmp_path / "editor.sh"
+    editor_script.write_text('#!/bin/sh\necho "from EDITOR" > "$1"\n')
+    editor_script.chmod(0o755)
+    visual_script = tmp_path / "visual.sh"
+    visual_script.write_text('#!/bin/sh\necho "from VISUAL" > "$1"\n')
+    visual_script.chmod(0o755)
+
+    monkeypatch.setenv("EDITOR", str(editor_script))
+    monkeypatch.setenv("VISUAL", str(visual_script))
+
+    assert _read_entry_from_editor() == "from EDITOR\n"
+
+
+def test_read_entry_from_editor_falls_back_to_VISUAL(tmp_path, monkeypatch):
+    visual_script = tmp_path / "visual.sh"
+    visual_script.write_text('#!/bin/sh\necho "from VISUAL" > "$1"\n')
+    visual_script.chmod(0o755)
+
+    monkeypatch.delenv("EDITOR", raising=False)
+    monkeypatch.setenv("VISUAL", str(visual_script))
+
+    assert _read_entry_from_editor() == "from VISUAL\n"
+
+
+def test_read_entry_from_editor_cleans_up_tempfile(tmp_path, monkeypatch):
+    script = tmp_path / "fake_editor.sh"
+    marker = tmp_path / "editor_target.txt"
+    script.write_text(f'#!/bin/sh\necho "$1" > {marker}\necho "hello" > "$1"\n')
+    script.chmod(0o755)
+
+    monkeypatch.setenv("EDITOR", str(script))
+    monkeypatch.delenv("VISUAL", raising=False)
+
+    _read_entry_from_editor()
+
+    target_path = marker.read_text().strip()
+    assert not os.path.exists(target_path)

@@ -22,6 +22,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `--task <id>` on `onepact journal` links a new entry to an existing task; rejects unknown task ids without saving the entry. `journal list` and `journal show` display the linked task when present.
 - `onepact journal search <text>` — case-insensitive substring search across journal entry bodies, most recent match first.
 
+### Tests
+- Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
+
 ## [0.1.0] - 2026-08-26
 
 ### Added
