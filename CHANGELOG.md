@@ -25,6 +25,9 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ### Tests
 - Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
 
+### Docs
+- README: new "Journaling" section documenting `journal` (append, `$EDITOR`, `--task` linking), `journal list` (`--limit`), `journal show`, and `journal search`, plus the `~/.onepact/journal.json` storage location. Every example command was run against a clean data directory to confirm its shown output.
+
 ## [0.1.0] - 2026-08-26
 
 ### Added

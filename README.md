@@ -35,6 +35,34 @@ onepact rm 1
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 
+## Journaling
+
+```bash
+onepact journal "wrote the weekly review"
+onepact journal "drafted the proposal" --task 1
+onepact journal
+onepact journal list
+onepact journal list --limit 5
+onepact journal show 1
+onepact journal search proposal
+```
+
+Journal entries are free-form, timestamped notes, separate from tasks.
+Run `onepact journal "text"` to append one directly, or `onepact journal`
+with no text to open `$EDITOR` (falling back to `$VISUAL`, then `vi`) for
+something longer — an empty entry, whether from a closed editor or from
+`journal "   "`, is discarded rather than saved.
+
+Add `--task <id>` to link an entry to an existing task (rejected if the
+task doesn't exist); `journal list` and `journal show` display the link
+when present. `journal list` shows entries most recent first, one line
+each, optionally capped with `--limit N`. `journal show <id>` prints an
+entry's full body. `journal search <text>` does a case-insensitive
+substring search across entry bodies, most recent match first.
+
+Entries are stored as JSON in `~/.onepact/journal.json`, separate from
+`tasks.json`.
+
 ## Development
 
 ```bash
