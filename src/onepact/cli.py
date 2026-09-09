@@ -208,6 +208,31 @@ def cmd_journal_show(store: JournalStore, args: argparse.Namespace) -> int:
     return 1
 
 
+def _confirm(prompt: str) -> bool:
+    try:
+        answer = input(f"{prompt} [y/N] ")
+    except EOFError:
+        return False
+    return answer.strip().lower() in ("y", "yes")
+
+
+def cmd_journal_rm(store: JournalStore, args: argparse.Namespace) -> int:
+    entries = store.load()
+    entry = next((e for e in entries if e.id == args.id), None)
+    if entry is None:
+        print(f"No journal entry with id {args.id}", file=sys.stderr)
+        return 1
+    if not args.yes:
+        preview = entry.body.splitlines()[0] if entry.body else ""
+        if not _confirm(f"Remove journal entry #{entry.id} ({preview!r})?"):
+            print("Aborted.")
+            return 1
+    remaining = [e for e in entries if e.id != args.id]
+    store.save(remaining)
+    print(f"Removed #{args.id}")
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -309,10 +334,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_journal_search.add_argument("text", help="Substring to search for (case-insensitive)")
     p_journal_search.set_defaults(func=cmd_journal_search, store_type="journal")
 
+    p_journal_rm = journal_sub.add_parser("rm", help="Remove a journal entry")
+    p_journal_rm.add_argument("id", type=int, help="Entry id")
+    p_journal_rm.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirmation prompt",
+    )
+    p_journal_rm.set_defaults(func=cmd_journal_rm, store_type="journal")
+
     return parser
 
 
-_JOURNAL_SUBCOMMANDS = {"add", "list", "show", "search"}
+_JOURNAL_SUBCOMMANDS = {"add", "list", "show", "search", "rm"}
 
 
 def main(argv: list[str] | None = None) -> int:

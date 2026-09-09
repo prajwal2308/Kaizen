@@ -38,7 +38,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 17. `onepact journal search <text>` — substring search across entries
 - [x] 18. Tests for all journal commands
 - [x] 19. README section documenting journaling workflow
-- [ ] 20. `onepact journal rm <id>` with confirmation prompt (skippable via `--yes`)
+- [x] 20. `onepact journal rm <id>` with confirmation prompt (skippable via `--yes`)
 
 ## Phase 3 — Search, filtering, recurrence
 

@@ -502,3 +502,79 @@ def test_read_entry_from_editor_cleans_up_tempfile(tmp_path, monkeypatch):
 
     target_path = marker.read_text().strip()
     assert not os.path.exists(target_path)
+
+
+def test_journal_rm_with_yes_flag_skips_prompt(capsys, tmp_path):
+    main(["journal", "entry to remove"])
+    capsys.readouterr()
+
+    assert main(["journal", "rm", "1", "--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "Removed #1" in out
+    assert JournalStore(data_dir=tmp_path).load() == []
+
+
+def test_journal_rm_short_yes_flag(tmp_path):
+    main(["journal", "entry to remove"])
+
+    assert main(["journal", "rm", "1", "-y"]) == 0
+    assert JournalStore(data_dir=tmp_path).load() == []
+
+
+def test_journal_rm_confirmed_removes_entry(monkeypatch, capsys, tmp_path):
+    main(["journal", "entry to remove"])
+    capsys.readouterr()
+    monkeypatch.setattr("builtins.input", lambda prompt="": "y")
+
+    assert main(["journal", "rm", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "Removed #1" in out
+    assert JournalStore(data_dir=tmp_path).load() == []
+
+
+def test_journal_rm_declined_keeps_entry(monkeypatch, capsys, tmp_path):
+    main(["journal", "entry to keep"])
+    capsys.readouterr()
+    monkeypatch.setattr("builtins.input", lambda prompt="": "n")
+
+    assert main(["journal", "rm", "1"]) == 1
+    out = capsys.readouterr().out
+    assert "Aborted." in out
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert len(entries) == 1
+    assert entries[0].body == "entry to keep"
+
+
+def test_journal_rm_prompt_includes_id_and_preview(monkeypatch, capsys):
+    main(["journal", "buy milk and eggs"])
+    capsys.readouterr()
+    captured_prompt = {}
+
+    def fake_input(prompt=""):
+        captured_prompt["value"] = prompt
+        return "n"
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    main(["journal", "rm", "1"])
+
+    assert "#1" in captured_prompt["value"]
+    assert "buy milk and eggs" in captured_prompt["value"]
+
+
+def test_journal_rm_unknown_id_errors(capsys):
+    assert main(["journal", "rm", "999"]) == 1
+    err = capsys.readouterr().err
+    assert "No journal entry with id 999" in err
+
+
+def test_journal_rm_eof_on_prompt_aborts(monkeypatch, tmp_path):
+    main(["journal", "entry to keep"])
+
+    def raise_eof(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", raise_eof)
+
+    assert main(["journal", "rm", "1"]) == 1
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert len(entries) == 1

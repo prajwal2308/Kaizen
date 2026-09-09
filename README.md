@@ -45,6 +45,8 @@ onepact journal list
 onepact journal list --limit 5
 onepact journal show 1
 onepact journal search proposal
+onepact journal rm 1
+onepact journal rm 1 --yes
 ```
 
 Journal entries are free-form, timestamped notes, separate from tasks.
@@ -59,6 +61,8 @@ when present. `journal list` shows entries most recent first, one line
 each, optionally capped with `--limit N`. `journal show <id>` prints an
 entry's full body. `journal search <text>` does a case-insensitive
 substring search across entry bodies, most recent match first.
+`journal rm <id>` asks for confirmation before deleting; pass `--yes`
+(or `-y`) to skip the prompt.
 
 Entries are stored as JSON in `~/.onepact/journal.json`, separate from
 `tasks.json`.
