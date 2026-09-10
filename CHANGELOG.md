@@ -22,12 +22,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `--task <id>` on `onepact journal` links a new entry to an existing task; rejects unknown task ids without saving the entry. `journal list` and `journal show` display the linked task when present.
 - `onepact journal search <text>` — case-insensitive substring search across journal entry bodies, most recent match first.
 - `onepact journal rm <id>` — removes a journal entry after an interactive confirmation prompt (shows the entry's id and first line); `--yes`/`-y` skips the prompt. Declining, or hitting EOF on the prompt, aborts without deleting. This completes Phase 2 (Journaling).
+- `onepact find <text>` — case-insensitive substring search across task titles, sorted like `list`; hides completed tasks unless `--all` is passed. Starts Phase 3 (Search, filtering, recurrence). Task line formatting was factored out into a shared `_format_task_line` helper used by both `list` and `find`.
 
 ### Tests
 - Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
 
 ### Docs
 - README: new "Journaling" section documenting `journal` (append, `$EDITOR`, `--task` linking), `journal list` (`--limit`), `journal show`, `journal search`, and `journal rm` (confirmation prompt, `--yes`), plus the `~/.onepact/journal.json` storage location. Every example command was run against a clean data directory to confirm its shown output.
+- README Usage section now documents `find` alongside `list`.
 
 ## [0.1.0] - 2026-08-26
 

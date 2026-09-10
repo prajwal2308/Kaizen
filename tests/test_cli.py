@@ -199,6 +199,67 @@ def test_rm_unknown_id_errors():
     assert main(["rm", "999"]) == 1
 
 
+def test_find_matches_task_titles(capsys):
+    main(["add", "write the onboarding docs"])
+    main(["add", "fix a parser bug"])
+    main(["add", "review the docs one more time"])
+    capsys.readouterr()
+
+    main(["find", "docs"])
+    out = capsys.readouterr().out
+    assert "onboarding docs" in out
+    assert "review the docs" in out
+    assert "fix a parser bug" not in out
+
+
+def test_find_is_case_insensitive(capsys):
+    main(["add", "Renew the PASSPORT"])
+    capsys.readouterr()
+
+    main(["find", "passport"])
+    out = capsys.readouterr().out
+    assert "Renew the PASSPORT" in out
+
+
+def test_find_excludes_done_tasks_by_default(capsys):
+    main(["add", "finish the docs"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    main(["find", "docs"])
+    out = capsys.readouterr().out
+    assert "No matching tasks." in out
+
+
+def test_find_all_includes_done_tasks(capsys):
+    main(["add", "finish the docs"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    main(["find", "docs", "--all"])
+    out = capsys.readouterr().out
+    assert "finish the docs" in out
+
+
+def test_find_no_matches(capsys):
+    main(["add", "an entry about cooking"])
+    capsys.readouterr()
+
+    assert main(["find", "gardening"]) == 0
+    out = capsys.readouterr().out
+    assert "No matching tasks." in out
+
+
+def test_find_sorts_by_priority(capsys):
+    main(["add", "docs low", "--priority", "low"])
+    main(["add", "docs high", "--priority", "high"])
+    capsys.readouterr()
+
+    main(["find", "docs"])
+    out = capsys.readouterr().out
+    assert out.index("docs high") < out.index("docs low")
+
+
 def test_journal_appends_entry(capsys, tmp_path):
     assert main(["journal", "wrote some code today"]) == 0
     out = capsys.readouterr().out

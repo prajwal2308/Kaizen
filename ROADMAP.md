@@ -42,7 +42,7 @@ new batch of items in this same format, and start on the first one.
 
 ## Phase 3 — Search, filtering, recurrence
 
-- [ ] 21. `onepact find <text>` — search task titles (case-insensitive substring)
+- [x] 21. `onepact find <text>` — search task titles (case-insensitive substring)
 - [ ] 22. `list --sort {priority,due,created}` 
 - [ ] 23. `list --overdue` shorthand filter
 - [ ] 24. Recurring tasks: `--repeat {daily,weekly}` on `add`

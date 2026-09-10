@@ -26,12 +26,16 @@ onepact add "pay rent" --due 2026-09-01
 onepact add "mow the lawn" --tag home --tag chores
 onepact list
 onepact list --tag home
+onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
 onepact done 1
 onepact list --all
 onepact rm 1
 ```
+
+`find` searches task titles with a case-insensitive substring match; like
+`list`, it hides completed tasks unless you pass `--all`.
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 

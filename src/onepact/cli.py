@@ -56,6 +56,18 @@ def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def _format_task_line(t: Task, today: str) -> str:
+    mark = "x" if t.done else " "
+    line = f"[{mark}] #{t.id} ({t.priority}) {t.title}"
+    if t.due:
+        line += f" [due {t.due}]"
+        if is_overdue(t, today):
+            line += " OVERDUE"
+    if t.tags:
+        line += f" [tags: {', '.join(t.tags)}]"
+    return line
+
+
 def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     if not args.all:
@@ -68,15 +80,23 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     tasks.sort(key=lambda t: (priority_rank(t.priority), t.id))
     today = datetime.now(timezone.utc).date().isoformat()
     for t in tasks:
-        mark = "x" if t.done else " "
-        line = f"[{mark}] #{t.id} ({t.priority}) {t.title}"
-        if t.due:
-            line += f" [due {t.due}]"
-            if is_overdue(t, today):
-                line += " OVERDUE"
-        if t.tags:
-            line += f" [tags: {', '.join(t.tags)}]"
-        print(line)
+        print(_format_task_line(t, today))
+    return 0
+
+
+def cmd_find(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    if not args.all:
+        tasks = [t for t in tasks if not t.done]
+    query = args.text.lower()
+    matches = [t for t in tasks if query in t.title.lower()]
+    if not matches:
+        print("No matching tasks.")
+        return 0
+    matches.sort(key=lambda t: (priority_rank(t.priority), t.id))
+    today = datetime.now(timezone.utc).date().isoformat()
+    for t in matches:
+        print(_format_task_line(t, today))
     return 0
 
 
@@ -277,6 +297,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
     p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
     p_list.set_defaults(func=cmd_list)
+
+    p_find = sub.add_parser("find", help="Search task titles by substring")
+    p_find.add_argument("text", help="Substring to search for (case-insensitive)")
+    p_find.add_argument("--all", action="store_true", help="Include completed tasks")
+    p_find.set_defaults(func=cmd_find)
 
     p_show = sub.add_parser("show", help="Show full details for a task")
     p_show.add_argument("id", type=int, help="Task id")
