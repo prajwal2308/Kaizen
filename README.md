@@ -26,6 +26,7 @@ onepact add "pay rent" --due 2026-09-01
 onepact add "mow the lawn" --tag home --tag chores
 onepact list
 onepact list --tag home
+onepact list --sort due
 onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
@@ -36,6 +37,11 @@ onepact rm 1
 
 `find` searches task titles with a case-insensitive substring match; like
 `list`, it hides completed tasks unless you pass `--all`.
+
+`list --sort {priority,due,created}` controls ordering: `priority` (the
+default) shows high-priority tasks first, `due` shows the soonest due
+date first with undated tasks last, and `created` shows the oldest task
+first.
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 

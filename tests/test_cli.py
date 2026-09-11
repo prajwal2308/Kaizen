@@ -60,6 +60,43 @@ def test_list_sorts_by_priority_high_first(capsys):
     assert out.index("high task") < out.index("med task") < out.index("low task")
 
 
+def test_list_sort_priority_is_the_default(capsys):
+    main(["add", "low task", "--priority", "low"])
+    main(["add", "high task", "--priority", "high"])
+    capsys.readouterr()
+
+    main(["list", "--sort", "priority"])
+    out = capsys.readouterr().out
+    assert out.index("high task") < out.index("low task")
+
+
+def test_list_sort_due_earliest_first(capsys):
+    main(["add", "due later", "--due", "2026-12-01"])
+    main(["add", "due sooner", "--due", "2026-10-01"])
+    main(["add", "no due date"])
+    capsys.readouterr()
+
+    main(["list", "--sort", "due"])
+    out = capsys.readouterr().out
+    assert out.index("due sooner") < out.index("due later") < out.index("no due date")
+
+
+def test_list_sort_created_oldest_first(capsys):
+    main(["add", "created first"])
+    main(["add", "created second"])
+    main(["add", "created third"])
+    capsys.readouterr()
+
+    main(["list", "--sort", "created"])
+    out = capsys.readouterr().out
+    assert out.index("created first") < out.index("created second") < out.index("created third")
+
+
+def test_list_sort_invalid_choice_errors():
+    with pytest.raises(SystemExit):
+        main(["list", "--sort", "bogus"])
+
+
 def test_add_with_due_shown_in_list(capsys):
     main(["add", "renew passport", "--due", "2099-01-01"])
     main(["list"])

@@ -77,7 +77,12 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     if not tasks:
         print("No tasks.")
         return 0
-    tasks.sort(key=lambda t: (priority_rank(t.priority), t.id))
+    if args.sort == "due":
+        tasks.sort(key=lambda t: (t.due is None, t.due or "", t.id))
+    elif args.sort == "created":
+        tasks.sort(key=lambda t: (t.created_at, t.id))
+    else:
+        tasks.sort(key=lambda t: (priority_rank(t.priority), t.id))
     today = datetime.now(timezone.utc).date().isoformat()
     for t in tasks:
         print(_format_task_line(t, today))
@@ -296,6 +301,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_list = sub.add_parser("list", help="List tasks")
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
     p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
+    p_list.add_argument(
+        "--sort",
+        choices=("priority", "due", "created"),
+        default="priority",
+        help="Sort order (default: priority)",
+    )
     p_list.set_defaults(func=cmd_list)
 
     p_find = sub.add_parser("find", help="Search task titles by substring")
