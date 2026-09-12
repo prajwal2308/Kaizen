@@ -27,6 +27,7 @@ onepact add "mow the lawn" --tag home --tag chores
 onepact list
 onepact list --tag home
 onepact list --sort due
+onepact list --overdue
 onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
@@ -42,6 +43,9 @@ onepact rm 1
 default) shows high-priority tasks first, `due` shows the soonest due
 date first with undated tasks last, and `created` shows the oldest task
 first.
+
+`list --overdue` is shorthand for showing only past-due, unfinished
+tasks — the same ones flagged `OVERDUE` in a regular `list`.
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 

@@ -24,13 +24,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `onepact journal rm <id>` — removes a journal entry after an interactive confirmation prompt (shows the entry's id and first line); `--yes`/`-y` skips the prompt. Declining, or hitting EOF on the prompt, aborts without deleting. This completes Phase 2 (Journaling).
 - `onepact find <text>` — case-insensitive substring search across task titles, sorted like `list`; hides completed tasks unless `--all` is passed. Starts Phase 3 (Search, filtering, recurrence). Task line formatting was factored out into a shared `_format_task_line` helper used by both `list` and `find`.
 - `list --sort {priority,due,created}` — `priority` (default) keeps the existing high-first ordering, `due` shows the soonest due date first with undated tasks sorted last, and `created` shows the oldest task first.
+- `list --overdue` — shorthand filter that shows only past-due, unfinished tasks (the same ones `list` flags `OVERDUE`); combines with `--tag`.
 
 ### Tests
 - Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
 
 ### Docs
 - README: new "Journaling" section documenting `journal` (append, `$EDITOR`, `--task` linking), `journal list` (`--limit`), `journal show`, `journal search`, and `journal rm` (confirmation prompt, `--yes`), plus the `~/.onepact/journal.json` storage location. Every example command was run against a clean data directory to confirm its shown output.
-- README Usage section now documents `find` and `list --sort` alongside `list`.
+- README Usage section now documents `find`, `list --sort`, and `list --overdue` alongside `list`.
 
 ## [0.1.0] - 2026-08-26
 

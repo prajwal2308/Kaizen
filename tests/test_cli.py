@@ -97,6 +97,49 @@ def test_list_sort_invalid_choice_errors():
         main(["list", "--sort", "bogus"])
 
 
+def test_list_overdue_shows_only_overdue_tasks(capsys):
+    main(["add", "past due", "--due", "2000-01-01"])
+    main(["add", "future due", "--due", "2099-01-01"])
+    main(["add", "no due date"])
+    capsys.readouterr()
+
+    main(["list", "--overdue"])
+    out = capsys.readouterr().out
+    assert "past due" in out
+    assert "future due" not in out
+    assert "no due date" not in out
+
+
+def test_list_overdue_excludes_done_tasks(capsys):
+    main(["add", "past due", "--due", "2000-01-01"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    main(["list", "--overdue"])
+    out = capsys.readouterr().out
+    assert "No tasks." in out
+
+
+def test_list_overdue_no_matches(capsys):
+    main(["add", "future due", "--due", "2099-01-01"])
+    capsys.readouterr()
+
+    assert main(["list", "--overdue"]) == 0
+    out = capsys.readouterr().out
+    assert "No tasks." in out
+
+
+def test_list_overdue_combines_with_tag(capsys):
+    main(["add", "overdue work task", "--due", "2000-01-01", "--tag", "work"])
+    main(["add", "overdue home task", "--due", "2000-01-01", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["list", "--overdue", "--tag", "work"])
+    out = capsys.readouterr().out
+    assert "overdue work task" in out
+    assert "overdue home task" not in out
+
+
 def test_add_with_due_shown_in_list(capsys):
     main(["add", "renew passport", "--due", "2099-01-01"])
     main(["list"])
