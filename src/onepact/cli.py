@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from onepact.storage import (
     PRIORITIES,
+    REPEATS,
     Entry,
     JournalStore,
     Task,
@@ -49,6 +50,7 @@ def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
         priority=args.priority,
         due=args.due,
         tags=tags,
+        repeat=args.repeat,
     )
     tasks.append(task)
     store.save(tasks)
@@ -65,6 +67,8 @@ def _format_task_line(t: Task, today: str) -> str:
             line += " OVERDUE"
     if t.tags:
         line += f" [tags: {', '.join(t.tags)}]"
+    if t.repeat:
+        line += f" [repeat: {t.repeat}]"
     return line
 
 
@@ -120,6 +124,7 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
                 due_line += " (OVERDUE)"
             print(due_line)
             print(f"Tags: {', '.join(t.tags) if t.tags else '(none)'}")
+            print(f"Repeat: {t.repeat}" if t.repeat else "Repeat: (none)")
             print(f"Created: {t.created_at}")
             if t.done_at:
                 print(f"Completed: {t.done_at}")
@@ -297,6 +302,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=None,
         help="Tag the task (repeatable)",
+    )
+    p_add.add_argument(
+        "--repeat",
+        choices=REPEATS,
+        default=None,
+        help="Make this task recur daily or weekly",
     )
     p_add.set_defaults(func=cmd_add)
 

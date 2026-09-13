@@ -45,7 +45,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 21. `onepact find <text>` — search task titles (case-insensitive substring)
 - [x] 22. `list --sort {priority,due,created}` 
 - [x] 23. `list --overdue` shorthand filter
-- [ ] 24. Recurring tasks: `--repeat {daily,weekly}` on `add`
+- [x] 24. Recurring tasks: `--repeat {daily,weekly}` on `add`
 - [ ] 25. Completing a recurring task auto-creates the next occurrence
 - [ ] 26. `onepact list --tag <t> --priority <p>` combinable filters
 - [ ] 27. Config file support: `~/.onepact/config.toml` for defaults (e.g. default priority)

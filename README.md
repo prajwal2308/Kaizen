@@ -24,6 +24,7 @@ onepact add "write the weekly review"
 onepact add "renew passport" --priority high
 onepact add "pay rent" --due 2026-09-01
 onepact add "mow the lawn" --tag home --tag chores
+onepact add "take out the trash" --repeat weekly
 onepact list
 onepact list --tag home
 onepact list --sort due
@@ -46,6 +47,11 @@ first.
 
 `list --overdue` is shorthand for showing only past-due, unfinished
 tasks — the same ones flagged `OVERDUE` in a regular `list`.
+
+`--repeat {daily,weekly}` on `add` marks a task as recurring, shown as
+`[repeat: daily]`/`[repeat: weekly]` in `list` and `find`, and as a
+`Repeat:` line in `show`. Completing a recurring task doesn't yet create
+its next occurrence — that's still on the roadmap.
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 

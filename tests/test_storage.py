@@ -64,6 +64,20 @@ def test_task_tags_defaults_are_independent_instances():
     assert b.tags == []
 
 
+def test_task_repeat_defaults_to_none():
+    assert Task(id=1, title="a").repeat is None
+
+
+def test_from_dict_defaults_repeat_when_missing():
+    task = Task.from_dict({"id": 1, "title": "legacy task"})
+    assert task.repeat is None
+
+
+def test_from_dict_reads_repeat():
+    task = Task.from_dict({"id": 1, "title": "a", "repeat": "weekly"})
+    assert task.repeat == "weekly"
+
+
 def test_load_empty_when_no_file(tmp_path):
     store = TaskStore(data_dir=tmp_path)
     assert store.load() == []

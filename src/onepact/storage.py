@@ -18,6 +18,8 @@ PRIORITIES = ("low", "med", "high")
 DEFAULT_PRIORITY = "med"
 _PRIORITY_RANK = {p: i for i, p in enumerate(PRIORITIES)}
 
+REPEATS = ("daily", "weekly")
+
 
 def priority_rank(priority: str) -> int:
     """Higher rank sorts first (high, then med, then low)."""
@@ -34,6 +36,7 @@ class Task:
     priority: str = DEFAULT_PRIORITY
     due: str | None = None
     tags: list[str] = field(default_factory=list)
+    repeat: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -49,6 +52,7 @@ class Task:
             priority=data.get("priority", DEFAULT_PRIORITY),
             due=data.get("due"),
             tags=list(data.get("tags", [])),
+            repeat=data.get("repeat"),
         )
 
 

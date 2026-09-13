@@ -233,6 +233,35 @@ def test_show_task_without_due_or_tags(capsys):
     out = capsys.readouterr().out
     assert "Due: (none)" in out
     assert "Tags: (none)" in out
+    assert "Repeat: (none)" in out
+
+
+def test_add_with_repeat_shown_in_list(capsys):
+    main(["add", "take out the trash", "--repeat", "weekly"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[repeat: weekly]" in out
+
+
+def test_add_without_repeat_shows_no_repeat_bracket(capsys):
+    main(["add", "one-off task"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[repeat:" not in out
+
+
+def test_show_displays_repeat(capsys):
+    main(["add", "daily standup", "--repeat", "daily"])
+    capsys.readouterr()
+
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Repeat: daily" in out
+
+
+def test_add_invalid_repeat_choice_errors():
+    with pytest.raises(SystemExit):
+        main(["add", "bad repeat", "--repeat", "monthly"])
 
 
 def test_show_done_task_includes_completed_at(capsys):
