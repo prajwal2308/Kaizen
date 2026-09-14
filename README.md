@@ -33,6 +33,7 @@ onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
 onepact done 1
+onepact done 5
 onepact list --all
 onepact rm 1
 ```
@@ -50,8 +51,10 @@ tasks — the same ones flagged `OVERDUE` in a regular `list`.
 
 `--repeat {daily,weekly}` on `add` marks a task as recurring, shown as
 `[repeat: daily]`/`[repeat: weekly]` in `list` and `find`, and as a
-`Repeat:` line in `show`. Completing a recurring task doesn't yet create
-its next occurrence — that's still on the roadmap.
+`Repeat:` line in `show`. Running `done` on a recurring task marks it
+done as usual and creates the next occurrence — same title, priority,
+tags, and repeat setting — due one day (`daily`) or one week (`weekly`)
+from today.
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 

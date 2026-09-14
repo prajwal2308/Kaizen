@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -33,6 +34,62 @@ def test_done_hides_from_default_list(capsys):
 
 def test_done_unknown_id_errors():
     assert main(["done", "999"]) == 1
+
+
+def test_done_daily_recurring_creates_next_occurrence(capsys, tmp_path):
+    main(["add", "water the plants", "--repeat", "daily", "--priority", "high"])
+    capsys.readouterr()
+
+    assert main(["done", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "Marked #1 done." in out
+    assert "Created #2: water the plants" in out
+    assert "(next daily occurrence)" in out
+
+    today = datetime.now(timezone.utc).date()
+    expected_due = (today + timedelta(days=1)).isoformat()
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert len(tasks) == 2
+    next_task = tasks[1]
+    assert next_task.title == "water the plants"
+    assert next_task.priority == "high"
+    assert next_task.repeat == "daily"
+    assert next_task.due == expected_due
+    assert next_task.done is False
+
+
+def test_done_weekly_recurring_creates_next_occurrence(tmp_path):
+    main(["add", "take out recycling", "--repeat", "weekly"])
+
+    assert main(["done", "1"]) == 0
+
+    today = datetime.now(timezone.utc).date()
+    expected_due = (today + timedelta(days=7)).isoformat()
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert len(tasks) == 2
+    assert tasks[1].due == expected_due
+    assert tasks[1].repeat == "weekly"
+
+
+def test_done_recurring_preserves_tags(tmp_path):
+    main(["add", "standup", "--repeat", "daily", "--tag", "work", "--tag", "team"])
+
+    main(["done", "1"])
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[1].tags == ["work", "team"]
+
+
+def test_done_non_recurring_task_creates_no_next_occurrence(capsys, tmp_path):
+    main(["add", "one-off task"])
+    capsys.readouterr()
+
+    assert main(["done", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "Created #" not in out
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert len(tasks) == 1
 
 
 def test_add_default_priority_is_med(capsys):

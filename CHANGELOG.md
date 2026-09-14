@@ -26,13 +26,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `list --sort {priority,due,created}` — `priority` (default) keeps the existing high-first ordering, `due` shows the soonest due date first with undated tasks sorted last, and `created` shows the oldest task first.
 - `list --overdue` — shorthand filter that shows only past-due, unfinished tasks (the same ones `list` flags `OVERDUE`); combines with `--tag`.
 - `--repeat {daily,weekly}` on `add` marks a task as recurring, shown as `[repeat: daily]`/`[repeat: weekly]` in `list`/`find` and as a `Repeat:` line in `show`. This is just the marker for now; auto-creating the next occurrence on completion is a separate, later roadmap item.
+- Completing a recurring task now auto-creates its next occurrence: `done` on a task with `repeat` set creates a new task with the same title, priority, tags, and repeat setting, due one day (`daily`) or one week (`weekly`) from the completion date. Non-recurring tasks are unaffected.
 
 ### Tests
 - Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
 
 ### Docs
 - README: new "Journaling" section documenting `journal` (append, `$EDITOR`, `--task` linking), `journal list` (`--limit`), `journal show`, `journal search`, and `journal rm` (confirmation prompt, `--yes`), plus the `~/.onepact/journal.json` storage location. Every example command was run against a clean data directory to confirm its shown output.
-- README Usage section now documents `find`, `list --sort`, `list --overdue`, and `--repeat` alongside `list`.
+- README Usage section now documents `find`, `list --sort`, `list --overdue`, and `--repeat` (including completing a recurring task) alongside `list`.
 
 ## [0.1.0] - 2026-08-26
 

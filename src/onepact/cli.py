@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from onepact.storage import (
     PRIORITIES,
@@ -133,14 +133,35 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
     return 1
 
 
+_REPEAT_DELTA = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
+
+
 def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     for t in tasks:
         if t.id == args.id:
             t.done = True
             t.done_at = datetime.now(timezone.utc).isoformat()
+            next_task = None
+            if t.repeat:
+                today = datetime.now(timezone.utc).date()
+                next_due = (today + _REPEAT_DELTA[t.repeat]).isoformat()
+                next_task = Task(
+                    id=store.next_id(tasks),
+                    title=t.title,
+                    priority=t.priority,
+                    due=next_due,
+                    tags=list(t.tags),
+                    repeat=t.repeat,
+                )
+                tasks.append(next_task)
             store.save(tasks)
             print(f"Marked #{t.id} done.")
+            if next_task is not None:
+                print(
+                    f"Created #{next_task.id}: {next_task.title} "
+                    f"[due {next_task.due}] (next {t.repeat} occurrence)"
+                )
             return 0
     print(f"No task with id {args.id}", file=sys.stderr)
     return 1

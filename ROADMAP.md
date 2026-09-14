@@ -46,7 +46,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 22. `list --sort {priority,due,created}` 
 - [x] 23. `list --overdue` shorthand filter
 - [x] 24. Recurring tasks: `--repeat {daily,weekly}` on `add`
-- [ ] 25. Completing a recurring task auto-creates the next occurrence
+- [x] 25. Completing a recurring task auto-creates the next occurrence
 - [ ] 26. `onepact list --tag <t> --priority <p>` combinable filters
 - [ ] 27. Config file support: `~/.onepact/config.toml` for defaults (e.g. default priority)
 - [ ] 28. `onepact config show` / `onepact config set <key> <value>`
