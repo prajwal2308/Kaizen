@@ -197,6 +197,35 @@ def test_list_overdue_combines_with_tag(capsys):
     assert "overdue home task" not in out
 
 
+def test_list_filters_by_priority(capsys):
+    main(["add", "high task", "--priority", "high"])
+    main(["add", "low task", "--priority", "low"])
+    capsys.readouterr()
+
+    main(["list", "--priority", "high"])
+    out = capsys.readouterr().out
+    assert "high task" in out
+    assert "low task" not in out
+
+
+def test_list_combines_tag_and_priority(capsys):
+    main(["add", "work high", "--priority", "high", "--tag", "work"])
+    main(["add", "work low", "--priority", "low", "--tag", "work"])
+    main(["add", "home high", "--priority", "high", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["list", "--tag", "work", "--priority", "high"])
+    out = capsys.readouterr().out
+    assert "work high" in out
+    assert "work low" not in out
+    assert "home high" not in out
+
+
+def test_list_priority_invalid_choice_errors():
+    with pytest.raises(SystemExit):
+        main(["list", "--priority", "urgent"])
+
+
 def test_add_with_due_shown_in_list(capsys):
     main(["add", "renew passport", "--due", "2099-01-01"])
     main(["list"])

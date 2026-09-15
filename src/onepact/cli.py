@@ -78,6 +78,8 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
         tasks = [t for t in tasks if not t.done]
     if args.tag:
         tasks = [t for t in tasks if args.tag in t.tags]
+    if args.priority:
+        tasks = [t for t in tasks if t.priority == args.priority]
     today = datetime.now(timezone.utc).date().isoformat()
     if args.overdue:
         tasks = [t for t in tasks if is_overdue(t, today)]
@@ -335,6 +337,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_list = sub.add_parser("list", help="List tasks")
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
     p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
+    p_list.add_argument(
+        "--priority",
+        choices=PRIORITIES,
+        default=None,
+        help="Filter to tasks with this priority",
+    )
     p_list.add_argument(
         "--overdue", action="store_true", help="Show only overdue tasks"
     )

@@ -23,10 +23,12 @@ pip install -e .
 onepact add "write the weekly review"
 onepact add "renew passport" --priority high
 onepact add "pay rent" --due 2026-09-01
-onepact add "mow the lawn" --tag home --tag chores
+onepact add "mow the lawn" --tag home --tag chores --priority high
 onepact add "take out the trash" --repeat weekly
 onepact list
 onepact list --tag home
+onepact list --priority high
+onepact list --tag home --priority high
 onepact list --sort due
 onepact list --overdue
 onepact find passport
@@ -40,6 +42,10 @@ onepact rm 1
 
 `find` searches task titles with a case-insensitive substring match; like
 `list`, it hides completed tasks unless you pass `--all`.
+
+`list --tag <t>`, `--priority <p>`, and `--overdue` all combine — pass
+several to narrow down further, e.g. `list --tag home --priority high`
+shows only high-priority tasks tagged `home`.
 
 `list --sort {priority,due,created}` controls ordering: `priority` (the
 default) shows high-priority tasks first, `due` shows the soonest due
