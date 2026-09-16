@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from onepact.cli import _read_entry_from_editor, main
+from onepact.config import load_config
 from onepact.storage import JournalStore, TaskStore
 
 
@@ -11,6 +12,7 @@ from onepact.storage import JournalStore, TaskStore
 def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr("onepact.cli.TaskStore", lambda: TaskStore(data_dir=tmp_path))
     monkeypatch.setattr("onepact.cli.JournalStore", lambda: JournalStore(data_dir=tmp_path))
+    monkeypatch.setattr("onepact.cli.load_config", lambda: load_config(data_dir=tmp_path))
 
 
 def test_add_and_list(capsys):
@@ -97,6 +99,24 @@ def test_add_default_priority_is_med(capsys):
     main(["list"])
     out = capsys.readouterr().out
     assert "(med) no priority given" in out
+
+
+def test_add_uses_config_default_priority(capsys, tmp_path):
+    (tmp_path / "config.toml").write_text('priority = "high"\n')
+
+    main(["add", "task with config default"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "(high) task with config default" in out
+
+
+def test_add_explicit_priority_overrides_config(tmp_path):
+    (tmp_path / "config.toml").write_text('priority = "high"\n')
+
+    main(["add", "explicit wins", "--priority", "low"])
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[0].priority == "low"
 
 
 def test_add_with_priority_shown_in_list(capsys):

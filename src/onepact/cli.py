@@ -7,6 +7,7 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 
+from onepact.config import load_config
 from onepact.storage import (
     PRIORITIES,
     REPEATS,
@@ -44,10 +45,11 @@ def _positive_int(value: str) -> int:
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     tags = list(dict.fromkeys(args.tags or []))
+    priority = args.priority or load_config()["priority"]
     task = Task(
         id=store.next_id(tasks),
         title=args.title,
-        priority=args.priority,
+        priority=priority,
         due=args.due,
         tags=tags,
         repeat=args.repeat,
@@ -310,8 +312,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_add.add_argument(
         "--priority",
         choices=PRIORITIES,
-        default="med",
-        help="Task priority (default: med)",
+        default=None,
+        help="Task priority (default: from config, or med)",
     )
     p_add.add_argument(
         "--due",

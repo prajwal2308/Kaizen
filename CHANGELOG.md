@@ -28,13 +28,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `--repeat {daily,weekly}` on `add` marks a task as recurring, shown as `[repeat: daily]`/`[repeat: weekly]` in `list`/`find` and as a `Repeat:` line in `show`. This is just the marker for now; auto-creating the next occurrence on completion is a separate, later roadmap item.
 - Completing a recurring task now auto-creates its next occurrence: `done` on a task with `repeat` set creates a new task with the same title, priority, tags, and repeat setting, due one day (`daily`) or one week (`weekly`) from the completion date. Non-recurring tasks are unaffected.
 - `list --priority <p>` filters to tasks with that priority; combines with `--tag` and `--overdue` since all three are just applied as sequential filters.
+- Config file support: `~/.onepact/config.toml` sets defaults, starting with `priority` (used by `add` when `--priority` is omitted; an explicit flag still wins). New `src/onepact/config.py` includes a minimal flat-TOML parser (`key = "value"` pairs, comments, no tables/arrays) rather than adding a dependency or dropping Python 3.10 support, since stdlib `tomllib` needs 3.11+. An invalid `priority` value in the file falls back to `med` rather than erroring.
 
 ### Tests
 - Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
+- New `tests/test_config.py` covering `load_config`: missing file, quoted/unquoted values, comments, invalid-priority fallback, and unknown keys.
 
 ### Docs
 - README: new "Journaling" section documenting `journal` (append, `$EDITOR`, `--task` linking), `journal list` (`--limit`), `journal show`, `journal search`, and `journal rm` (confirmation prompt, `--yes`), plus the `~/.onepact/journal.json` storage location. Every example command was run against a clean data directory to confirm its shown output.
 - README Usage section now documents `find`, `list --sort`, `list --overdue`, `list --priority` (and combining filters), and `--repeat` (including completing a recurring task) alongside `list`.
+- New README "Configuration" section documenting `~/.onepact/config.toml` and the `priority` key.
 
 ## [0.1.0] - 2026-08-26
 
