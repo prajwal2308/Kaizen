@@ -7,7 +7,7 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 
-from onepact.config import load_config
+from onepact.config import SUPPORTED_KEYS, load_config, set_config_value
 from onepact.storage import (
     PRIORITIES,
     REPEATS,
@@ -301,6 +301,32 @@ def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_config_show(_store: TaskStore, args: argparse.Namespace) -> int:
+    config = load_config()
+    for key in sorted(config):
+        print(f"{key} = {config[key]}")
+    return 0
+
+
+def cmd_config_set(_store: TaskStore, args: argparse.Namespace) -> int:
+    if args.key not in SUPPORTED_KEYS:
+        print(
+            f"Unknown config key {args.key!r}. Supported keys: {', '.join(SUPPORTED_KEYS)}",
+            file=sys.stderr,
+        )
+        return 1
+    if args.key == "priority" and args.value not in PRIORITIES:
+        print(
+            f"Invalid value {args.value!r} for 'priority', "
+            f"expected one of {', '.join(PRIORITIES)}",
+            file=sys.stderr,
+        )
+        return 1
+    set_config_value(args.key, args.value)
+    print(f"Set {args.key} = {args.value}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="onepact", description="A local-first task and journal CLI."
@@ -377,6 +403,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove a task")
     p_rm.add_argument("id", type=int, help="Task id")
     p_rm.set_defaults(func=cmd_rm)
+
+    p_config = sub.add_parser("config", help="View or change configuration")
+    config_sub = p_config.add_subparsers(dest="config_command", required=True)
+
+    p_config_show = config_sub.add_parser("show", help="Show current configuration")
+    p_config_show.set_defaults(func=cmd_config_show)
+
+    p_config_set = config_sub.add_parser("set", help="Set a configuration value")
+    p_config_set.add_argument("key", help="Configuration key")
+    p_config_set.add_argument("value", help="Configuration value")
+    p_config_set.set_defaults(func=cmd_config_set)
 
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)

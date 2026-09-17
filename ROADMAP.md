@@ -49,7 +49,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 25. Completing a recurring task auto-creates the next occurrence
 - [x] 26. `onepact list --tag <t> --priority <p>` combinable filters
 - [x] 27. Config file support: `~/.onepact/config.toml` for defaults (e.g. default priority)
-- [ ] 28. `onepact config show` / `onepact config set <key> <value>`
+- [x] 28. `onepact config show` / `onepact config set <key> <value>`
 - [ ] 29. Colorized terminal output (respect `NO_COLOR` / non-tty)
 - [ ] 30. Tests for sorting, filtering, recurrence, and config
 

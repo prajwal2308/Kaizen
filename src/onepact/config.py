@@ -7,6 +7,7 @@ from onepact.storage import DATA_DIR, DEFAULT_PRIORITY, PRIORITIES
 CONFIG_FILE = "config.toml"
 
 DEFAULTS: dict[str, str] = {"priority": DEFAULT_PRIORITY}
+SUPPORTED_KEYS = tuple(DEFAULTS)
 
 
 def _config_path(data_dir: Path | None = None) -> Path:
@@ -46,3 +47,27 @@ def load_config(data_dir: Path | None = None) -> dict[str, str]:
     if config.get("priority") not in PRIORITIES:
         config["priority"] = DEFAULT_PRIORITY
     return config
+
+
+def _read_raw(data_dir: Path | None = None) -> dict[str, str]:
+    """Like load_config, but only what's actually in the file -- no
+    defaults merged in. Used by set_config_value so writing one key
+    doesn't bake in every default as an explicit file entry.
+    """
+    path = _config_path(data_dir)
+    if not path.exists():
+        return {}
+    return _parse_toml(path.read_text(encoding="utf-8"))
+
+
+def _write_raw(values: dict[str, str], data_dir: Path | None = None) -> None:
+    path = _config_path(data_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [f'{key} = "{value}"' for key, value in sorted(values.items())]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def set_config_value(key: str, value: str, data_dir: Path | None = None) -> None:
+    raw = _read_raw(data_dir)
+    raw[key] = value
+    _write_raw(raw, data_dir)

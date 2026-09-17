@@ -66,18 +66,23 @@ Tasks are stored as JSON in `~/.onepact/tasks.json`.
 
 ## Configuration
 
-Create `~/.onepact/config.toml` to change defaults:
+```bash
+onepact config show
+onepact config set priority high
+```
+
+`config show` prints the current configuration; `config set <key> <value>`
+writes a value to `~/.onepact/config.toml` (creating it if needed) and
+rejects unknown keys or, for `priority`, values that aren't `low`/`med`/
+`high` — nothing is written on an invalid `set`. Right now the only
+supported key is `priority` — the default `add` uses when `--priority` is
+omitted (an explicit `--priority` still wins). You can also edit the file
+directly:
 
 ```toml
 # ~/.onepact/config.toml
 priority = "high"
 ```
-
-Right now the only supported key is `priority` — the default `add` uses
-when `--priority` is omitted (an explicit `--priority` still wins). An
-invalid value falls back to `med` rather than erroring. There's no
-`config` command yet to view or edit this from the CLI; edit the file
-directly for now.
 
 ## Journaling
 

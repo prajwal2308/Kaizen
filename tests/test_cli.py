@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from onepact.cli import _read_entry_from_editor, main
-from onepact.config import load_config
+from onepact.config import load_config, set_config_value
 from onepact.storage import JournalStore, TaskStore
 
 
@@ -13,6 +13,10 @@ def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr("onepact.cli.TaskStore", lambda: TaskStore(data_dir=tmp_path))
     monkeypatch.setattr("onepact.cli.JournalStore", lambda: JournalStore(data_dir=tmp_path))
     monkeypatch.setattr("onepact.cli.load_config", lambda: load_config(data_dir=tmp_path))
+    monkeypatch.setattr(
+        "onepact.cli.set_config_value",
+        lambda key, value: set_config_value(key, value, data_dir=tmp_path),
+    )
 
 
 def test_add_and_list(capsys):
@@ -117,6 +121,52 @@ def test_add_explicit_priority_overrides_config(tmp_path):
 
     tasks = TaskStore(data_dir=tmp_path).load()
     assert tasks[0].priority == "low"
+
+
+def test_config_show_default(capsys):
+    assert main(["config", "show"]) == 0
+    out = capsys.readouterr().out
+    assert "priority = med" in out
+
+
+def test_config_show_reflects_file(capsys, tmp_path):
+    (tmp_path / "config.toml").write_text('priority = "high"\n')
+
+    main(["config", "show"])
+    out = capsys.readouterr().out
+    assert "priority = high" in out
+
+
+def test_config_set_updates_value(capsys, tmp_path):
+    assert main(["config", "set", "priority", "high"]) == 0
+    out = capsys.readouterr().out
+    assert "Set priority = high" in out
+
+    main(["config", "show"])
+    out = capsys.readouterr().out
+    assert "priority = high" in out
+
+
+def test_config_set_then_add_uses_new_default(tmp_path):
+    main(["config", "set", "priority", "high"])
+
+    main(["add", "task after config set"])
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[0].priority == "high"
+
+
+def test_config_set_unknown_key_errors(capsys):
+    assert main(["config", "set", "bogus", "value"]) == 1
+    err = capsys.readouterr().err
+    assert "Unknown config key" in err
+
+
+def test_config_set_invalid_priority_value_errors(capsys, tmp_path):
+    assert main(["config", "set", "priority", "urgent"]) == 1
+    err = capsys.readouterr().err
+    assert "Invalid value" in err
+    assert not (tmp_path / "config.toml").exists()
 
 
 def test_add_with_priority_shown_in_list(capsys):
