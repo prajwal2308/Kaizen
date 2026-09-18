@@ -7,6 +7,7 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 
+from onepact.color import colorize, should_color
 from onepact.config import SUPPORTED_KEYS, load_config, set_config_value
 from onepact.storage import (
     PRIORITIES,
@@ -60,17 +61,21 @@ def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
-def _format_task_line(t: Task, today: str) -> str:
+_PRIORITY_COLOR = {"high": "red", "med": "yellow", "low": "blue"}
+
+
+def _format_task_line(t: Task, today: str, color: bool = False) -> str:
     mark = "x" if t.done else " "
-    line = f"[{mark}] #{t.id} ({t.priority}) {t.title}"
+    priority = colorize(f"({t.priority})", _PRIORITY_COLOR[t.priority], enabled=color)
+    line = f"[{mark}] #{t.id} {priority} {t.title}"
     if t.due:
         line += f" [due {t.due}]"
         if is_overdue(t, today):
-            line += " OVERDUE"
+            line += colorize(" OVERDUE", "red", "bold", enabled=color)
     if t.tags:
-        line += f" [tags: {', '.join(t.tags)}]"
+        line += colorize(f" [tags: {', '.join(t.tags)}]", "cyan", enabled=color)
     if t.repeat:
-        line += f" [repeat: {t.repeat}]"
+        line += colorize(f" [repeat: {t.repeat}]", "magenta", enabled=color)
     return line
 
 
@@ -94,8 +99,9 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
         tasks.sort(key=lambda t: (t.created_at, t.id))
     else:
         tasks.sort(key=lambda t: (priority_rank(t.priority), t.id))
+    color = should_color()
     for t in tasks:
-        print(_format_task_line(t, today))
+        print(_format_task_line(t, today, color))
     return 0
 
 
@@ -110,8 +116,9 @@ def cmd_find(store: TaskStore, args: argparse.Namespace) -> int:
         return 0
     matches.sort(key=lambda t: (priority_rank(t.priority), t.id))
     today = datetime.now(timezone.utc).date().isoformat()
+    color = should_color()
     for t in matches:
-        print(_format_task_line(t, today))
+        print(_format_task_line(t, today, color))
     return 0
 
 
@@ -120,12 +127,14 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
     for t in tasks:
         if t.id == args.id:
             today = datetime.now(timezone.utc).date().isoformat()
+            color = should_color()
             print(f"#{t.id} {t.title}")
-            print(f"Status: {'done' if t.done else 'pending'}")
-            print(f"Priority: {t.priority}")
+            status = "done" if t.done else "pending"
+            print(f"Status: {colorize(status, 'green' if t.done else 'yellow', enabled=color)}")
+            print(f"Priority: {colorize(t.priority, _PRIORITY_COLOR[t.priority], enabled=color)}")
             due_line = f"Due: {t.due}" if t.due else "Due: (none)"
             if t.due and is_overdue(t, today):
-                due_line += " (OVERDUE)"
+                due_line += colorize(" (OVERDUE)", "red", "bold", enabled=color)
             print(due_line)
             print(f"Tags: {', '.join(t.tags) if t.tags else '(none)'}")
             print(f"Repeat: {t.repeat}" if t.repeat else "Repeat: (none)")
@@ -221,11 +230,11 @@ def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
     return 0
 
 
-def _format_entry_line(e: Entry) -> str:
+def _format_entry_line(e: Entry, color: bool = False) -> str:
     first_line = e.body.splitlines()[0] if e.body else ""
     line = f"#{e.id} [{e.created_at}] {first_line}"
     if e.task_id is not None:
-        line += f" [task #{e.task_id}]"
+        line += colorize(f" [task #{e.task_id}]", "cyan", enabled=color)
     return line
 
 
@@ -236,8 +245,9 @@ def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
     if not entries:
         print("No journal entries.")
         return 0
+    color = should_color()
     for e in entries:
-        print(_format_entry_line(e))
+        print(_format_entry_line(e, color))
     return 0
 
 
@@ -248,8 +258,9 @@ def cmd_journal_search(store: JournalStore, args: argparse.Namespace) -> int:
     if not matches:
         print("No matching journal entries.")
         return 0
+    color = should_color()
     for e in matches:
-        print(_format_entry_line(e))
+        print(_format_entry_line(e, color))
     return 0
 
 

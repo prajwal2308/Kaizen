@@ -30,15 +30,18 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - `list --priority <p>` filters to tasks with that priority; combines with `--tag` and `--overdue` since all three are just applied as sequential filters.
 - Config file support: `~/.onepact/config.toml` sets defaults, starting with `priority` (used by `add` when `--priority` is omitted; an explicit flag still wins). New `src/onepact/config.py` includes a minimal flat-TOML parser (`key = "value"` pairs, comments, no tables/arrays) rather than adding a dependency or dropping Python 3.10 support, since stdlib `tomllib` needs 3.11+. An invalid `priority` value in the file falls back to `med` rather than erroring.
 - `onepact config show` / `onepact config set <key> <value>` — view the current configuration or write a value to `config.toml` from the CLI instead of editing the file by hand. `set` rejects unknown keys and, for `priority`, values outside `low`/`med`/`high`, writing nothing on an invalid call; existing keys in the file are preserved when setting a different one.
+- Colorized terminal output: `list`, `find`, `show`, `journal list`, and `journal search` colorize priority, `OVERDUE`, tags, `repeat`, and linked-task markers when stdout is a real terminal. New `src/onepact/color.py` (`should_color()`, `colorize()`) autodetects this — off when piped/redirected, and off on a real terminal too when `NO_COLOR` is set (presence disables it regardless of value, per no-color.org). No `--color`/`--no-color` flag; it's automatic.
 
 ### Tests
 - Filled gaps in journal command coverage: the explicit `journal add` keyword, an editor-sourced entry linked to a task via `--task`, `journal search` against an empty store, and direct tests of `_read_entry_from_editor` (`$EDITOR`/`$VISUAL` precedence and temp-file cleanup) using a real fake-editor script rather than mocking it away.
 - New `tests/test_config.py` covering `load_config`: missing file, quoted/unquoted values, comments, invalid-priority fallback, and unknown keys. Extended with `set_config_value` tests: file creation, overwriting, preserving other keys, and exact written format.
+- New `tests/test_color.py` covering `should_color()` (tty/non-tty, `NO_COLOR` set/unset/empty, a stream with no `isatty`) and `colorize()` (single/combined styles, disabled, empty text). CLI tests force color on via a monkeypatched `should_color` to check exact ANSI sequences in `list`/`find`/`show`/`journal list` output, plus one confirming no escape codes appear by default under pytest's non-tty capture.
 
 ### Docs
 - README: new "Journaling" section documenting `journal` (append, `$EDITOR`, `--task` linking), `journal list` (`--limit`), `journal show`, `journal search`, and `journal rm` (confirmation prompt, `--yes`), plus the `~/.onepact/journal.json` storage location. Every example command was run against a clean data directory to confirm its shown output.
 - README Usage section now documents `find`, `list --sort`, `list --overdue`, `list --priority` (and combining filters), and `--repeat` (including completing a recurring task) alongside `list`.
 - README "Configuration" section documents `~/.onepact/config.toml`, the `priority` key, and now `config show`/`config set` as the way to view and change it from the CLI.
+- New README "Color" section documenting autodetection and `NO_COLOR`.
 
 ## [0.1.0] - 2026-08-26
 

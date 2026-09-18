@@ -904,3 +904,57 @@ def test_journal_rm_eof_on_prompt_aborts(monkeypatch, tmp_path):
     assert main(["journal", "rm", "1"]) == 1
     entries = JournalStore(data_dir=tmp_path).load()
     assert len(entries) == 1
+
+
+def test_list_output_has_no_ansi_codes_by_default(capsys):
+    main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "\033[" not in out
+
+
+def test_list_output_is_colorized_when_forced_on(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli.should_color", lambda: True)
+    main(["add", "colorful task", "--priority", "high", "--due", "2000-01-01", "--tag", "work"])
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "\033[31m(high)\033[0m" in out
+    assert "\033[31;1m OVERDUE\033[0m" in out
+    assert "\033[36m [tags: work]\033[0m" in out
+
+
+def test_find_output_is_colorized_when_forced_on(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli.should_color", lambda: True)
+    main(["add", "colorful task", "--priority", "low"])
+    capsys.readouterr()
+
+    main(["find", "colorful"])
+    out = capsys.readouterr().out
+    assert "\033[34m(low)\033[0m" in out
+
+
+def test_show_output_is_colorized_when_forced_on(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli.should_color", lambda: True)
+    main(["add", "colorful task", "--priority", "med", "--due", "2000-01-01"])
+    capsys.readouterr()
+
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Status: \033[33mpending\033[0m" in out
+    assert "Priority: \033[33mmed\033[0m" in out
+    assert "\033[31;1m (OVERDUE)\033[0m" in out
+
+
+def test_journal_list_output_is_colorized_when_forced_on(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli.should_color", lambda: True)
+    main(["add", "linked task"])
+    main(["journal", "an entry", "--task", "1"])
+    capsys.readouterr()
+
+    main(["journal", "list"])
+    out = capsys.readouterr().out
+    assert "\033[36m [task #1]\033[0m" in out

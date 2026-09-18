@@ -84,6 +84,16 @@ directly:
 priority = "high"
 ```
 
+## Color
+
+`list`, `find`, `show`, `journal list`, and `journal search` colorize
+priorities, `OVERDUE`, tags, `repeat`, and linked-task markers when
+standard output is a real terminal. Color is off automatically when
+output is piped or redirected, and can be turned off on a terminal too
+by setting the `NO_COLOR` environment variable (to any value, including
+empty — see [no-color.org](https://no-color.org)). There's no separate
+`--color`/`--no-color` flag; it's autodetected.
+
 ## Journaling
 
 ```bash
