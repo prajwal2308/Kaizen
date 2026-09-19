@@ -51,7 +51,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 27. Config file support: `~/.onepact/config.toml` for defaults (e.g. default priority)
 - [x] 28. `onepact config show` / `onepact config set <key> <value>`
 - [x] 29. Colorized terminal output (respect `NO_COLOR` / non-tty)
-- [ ] 30. Tests for sorting, filtering, recurrence, and config
+- [x] 30. Tests for sorting, filtering, recurrence, and config
 
 ## Phase 4 — Storage evolution & data safety
 

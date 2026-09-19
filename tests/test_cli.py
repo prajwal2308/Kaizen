@@ -98,6 +98,31 @@ def test_done_non_recurring_task_creates_no_next_occurrence(capsys, tmp_path):
     assert len(tasks) == 1
 
 
+def test_done_recurring_marks_original_done_and_keeps_repeat(tmp_path):
+    main(["add", "water the plants", "--repeat", "daily"])
+
+    main(["done", "1"])
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    original = tasks[0]
+    assert original.done is True
+    assert original.done_at is not None
+    assert original.repeat == "daily"
+
+
+def test_done_recurring_chains_across_multiple_completions(tmp_path):
+    main(["add", "daily habit", "--repeat", "daily"])
+
+    main(["done", "1"])
+    main(["done", "2"])
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert len(tasks) == 3
+    assert [t.done for t in tasks] == [True, True, False]
+    assert tasks[2].title == "daily habit"
+    assert tasks[2].repeat == "daily"
+
+
 def test_add_default_priority_is_med(capsys):
     main(["add", "no priority given"])
     main(["list"])
@@ -135,6 +160,25 @@ def test_config_show_reflects_file(capsys, tmp_path):
     main(["config", "show"])
     out = capsys.readouterr().out
     assert "priority = high" in out
+
+
+def test_config_show_includes_unknown_keys_from_file(capsys, tmp_path):
+    (tmp_path / "config.toml").write_text('priority = "high"\nmystery = "value"\n')
+
+    main(["config", "show"])
+    out = capsys.readouterr().out
+    assert "priority = high" in out
+    assert "mystery = value" in out
+
+
+def test_config_set_preserves_other_keys_via_cli(tmp_path):
+    (tmp_path / "config.toml").write_text('mystery = "kept"\npriority = "low"\n')
+
+    main(["config", "set", "priority", "high"])
+
+    text = (tmp_path / "config.toml").read_text()
+    assert 'mystery = "kept"' in text
+    assert 'priority = "high"' in text
 
 
 def test_config_set_updates_value(capsys, tmp_path):
@@ -294,6 +338,55 @@ def test_list_combines_tag_and_priority(capsys):
 def test_list_priority_invalid_choice_errors():
     with pytest.raises(SystemExit):
         main(["list", "--priority", "urgent"])
+
+
+def test_list_overdue_combines_with_priority(capsys):
+    main(["add", "overdue high", "--due", "2000-01-01", "--priority", "high"])
+    main(["add", "overdue low", "--due", "2000-01-01", "--priority", "low"])
+    capsys.readouterr()
+
+    main(["list", "--overdue", "--priority", "high"])
+    out = capsys.readouterr().out
+    assert "overdue high" in out
+    assert "overdue low" not in out
+
+
+def test_list_combines_tag_priority_and_overdue(capsys):
+    main(["add", "match", "--due", "2000-01-01", "--priority", "high", "--tag", "work"])
+    main(["add", "wrong priority", "--due", "2000-01-01", "--priority", "low", "--tag", "work"])
+    main(["add", "wrong tag", "--due", "2000-01-01", "--priority", "high", "--tag", "home"])
+    main(["add", "not overdue", "--due", "2099-01-01", "--priority", "high", "--tag", "work"])
+    capsys.readouterr()
+
+    main(["list", "--tag", "work", "--priority", "high", "--overdue"])
+    out = capsys.readouterr().out
+    assert "match" in out
+    assert "wrong priority" not in out
+    assert "wrong tag" not in out
+    assert "not overdue" not in out
+
+
+def test_list_sort_applies_after_overdue_filter(capsys):
+    main(["add", "overdue later", "--due", "2000-01-05"])
+    main(["add", "overdue sooner", "--due", "2000-01-01"])
+    main(["add", "not overdue", "--due", "2099-01-01"])
+    capsys.readouterr()
+
+    main(["list", "--overdue", "--sort", "due"])
+    out = capsys.readouterr().out
+    assert "not overdue" not in out
+    assert out.index("overdue sooner") < out.index("overdue later")
+
+
+def test_list_sort_due_with_all_undated_tasks_orders_by_id(capsys):
+    main(["add", "first"])
+    main(["add", "second"])
+    main(["add", "third"])
+    capsys.readouterr()
+
+    main(["list", "--sort", "due"])
+    out = capsys.readouterr().out
+    assert out.index("first") < out.index("second") < out.index("third")
 
 
 def test_add_with_due_shown_in_list(capsys):
