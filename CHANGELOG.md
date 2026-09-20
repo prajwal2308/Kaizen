@@ -43,6 +43,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 - README Usage section now documents `find`, `list --sort`, `list --overdue`, `list --priority` (and combining filters), and `--repeat` (including completing a recurring task) alongside `list`.
 - README "Configuration" section documents `~/.onepact/config.toml`, the `priority` key, and now `config show`/`config set` as the way to view and change it from the CLI.
 - New README "Color" section documenting autodetection and `NO_COLOR`.
+- New `SCHEMA.md`: the SQLite schema `SqliteTaskStore` (item 32) will implement, designed as a direct equivalent of the current JSON model — `tasks`, a normalized `tags`/`task_tags` join (`Task.tags` isn't a native SQLite type), and `journal_entries`, with a JSON-field-to-column mapping table, `CHECK` constraints on `priority`/`repeat`/`done`, indexes on the columns `list --overdue`/`--priority`/`--tag` already filter by, and notes on keeping id assignment app-controlled (not SQLite `AUTOINCREMENT`) so migration can insert existing ids and both backends stay interchangeable. Starts Phase 4 (Storage evolution & data safety). Nothing is wired up yet — every `CREATE TABLE`, its `CHECK` constraints, defaults, and `ON DELETE` behavior were executed and verified against Python's stdlib `sqlite3`, not just written down.
 
 ## [0.1.0] - 2026-08-26
 

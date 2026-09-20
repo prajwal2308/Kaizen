@@ -55,7 +55,7 @@ new batch of items in this same format, and start on the first one.
 
 ## Phase 4 — Storage evolution & data safety
 
-- [ ] 31. Design a SQLite schema equivalent to the current JSON model
+- [x] 31. Design a SQLite schema equivalent to the current JSON model
 - [ ] 32. `SqliteTaskStore` implementing the same interface as `TaskStore`
 - [ ] 33. One-time migration command: `onepact migrate json-to-sqlite`
 - [ ] 34. Switch default backend to SQLite behind a storage interface; keep JSON store for tests/back-compat
