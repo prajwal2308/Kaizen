@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from onepact.color import colorize, should_color
 from onepact.config import SUPPORTED_KEYS, load_config, set_config_value
+from onepact.sqlite_storage import SqliteTaskStore
 from onepact.storage import (
     PRIORITIES,
     REPEATS,
@@ -338,6 +339,22 @@ def cmd_config_set(_store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_migrate(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    sqlite_store = SqliteTaskStore()
+    existing = sqlite_store.load()
+    if existing:
+        print(
+            f"SQLite store already has {len(existing)} task(s); refusing to overwrite. "
+            f"Remove {sqlite_store.path} to re-migrate.",
+            file=sys.stderr,
+        )
+        return 1
+    sqlite_store.save(tasks)
+    print(f"Migrated {len(tasks)} task(s) from {store.path} to {sqlite_store.path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="onepact", description="A local-first task and journal CLI."
@@ -425,6 +442,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_config_set.add_argument("key", help="Configuration key")
     p_config_set.add_argument("value", help="Configuration value")
     p_config_set.set_defaults(func=cmd_config_set)
+
+    p_migrate = sub.add_parser(
+        "migrate", help="One-time migration between storage backends"
+    )
+    p_migrate.add_argument(
+        "direction",
+        choices=("json-to-sqlite",),
+        help="Migration direction",
+    )
+    p_migrate.set_defaults(func=cmd_migrate)
 
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)

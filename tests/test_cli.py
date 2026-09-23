@@ -5,7 +5,8 @@ import pytest
 
 from onepact.cli import _read_entry_from_editor, main
 from onepact.config import load_config, set_config_value
-from onepact.storage import JournalStore, TaskStore
+from onepact.sqlite_storage import SqliteTaskStore
+from onepact.storage import JournalStore, Task, TaskStore
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +17,9 @@ def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "onepact.cli.set_config_value",
         lambda key, value: set_config_value(key, value, data_dir=tmp_path),
+    )
+    monkeypatch.setattr(
+        "onepact.cli.SqliteTaskStore", lambda: SqliteTaskStore(data_dir=tmp_path)
     )
 
 
@@ -211,6 +215,51 @@ def test_config_set_invalid_priority_value_errors(capsys, tmp_path):
     err = capsys.readouterr().err
     assert "Invalid value" in err
     assert not (tmp_path / "config.toml").exists()
+
+
+def test_migrate_json_to_sqlite_copies_tasks(capsys, tmp_path):
+    main(["add", "write tests", "--priority", "high", "--tag", "work"])
+    main(["add", "ship it", "--due", "2026-09-22", "--repeat", "weekly"])
+    capsys.readouterr()
+
+    assert main(["migrate", "json-to-sqlite"]) == 0
+    out = capsys.readouterr().out
+    assert "Migrated 2 task(s)" in out
+
+    sqlite_tasks = SqliteTaskStore(data_dir=tmp_path).load()
+    json_tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in sqlite_tasks] == ["write tests", "ship it"]
+    assert sqlite_tasks[0].priority == "high"
+    assert sqlite_tasks[0].tags == ["work"]
+    assert sqlite_tasks[1].repeat == "weekly"
+    # The JSON store is untouched -- this is a copy, not a move.
+    assert [t.title for t in json_tasks] == ["write tests", "ship it"]
+
+
+def test_migrate_json_to_sqlite_handles_empty_store(capsys):
+    assert main(["migrate", "json-to-sqlite"]) == 0
+    out = capsys.readouterr().out
+    assert "Migrated 0 task(s)" in out
+
+
+def test_migrate_refuses_to_overwrite_existing_sqlite_data(capsys, tmp_path):
+    main(["add", "original json task"])
+    capsys.readouterr()
+    SqliteTaskStore(data_dir=tmp_path).save(
+        [Task(id=99, title="already migrated task")]
+    )
+
+    assert main(["migrate", "json-to-sqlite"]) == 1
+    err = capsys.readouterr().err
+    assert "already has 1 task(s)" in err
+
+    sqlite_tasks = SqliteTaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in sqlite_tasks] == ["already migrated task"]
+
+
+def test_migrate_invalid_direction_errors():
+    with pytest.raises(SystemExit):
+        main(["migrate", "sqlite-to-json"])
 
 
 def test_add_with_priority_shown_in_list(capsys):

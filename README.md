@@ -67,6 +67,20 @@ from today.
 
 Tasks are stored as JSON in `~/.onepact/tasks.json`.
 
+## Migrating to SQLite
+
+```bash
+onepact migrate json-to-sqlite
+```
+
+Copies every task from `~/.onepact/tasks.json` into a new
+`~/.onepact/onepact.db` SQLite database (schema: [SCHEMA.md](SCHEMA.md)).
+It's a copy, not a move — the JSON file is untouched, and the command
+refuses to run again once `onepact.db` already has tasks in it, so you
+won't accidentally double up or overwrite data. This is a preview: the
+CLI doesn't read from SQLite yet, so nothing changes about how `onepact`
+behaves day to day until a later release switches the default backend.
+
 ## Configuration
 
 ```bash
