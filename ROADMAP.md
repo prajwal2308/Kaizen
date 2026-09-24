@@ -58,7 +58,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 31. Design a SQLite schema equivalent to the current JSON model
 - [x] 32. `SqliteTaskStore` implementing the same interface as `TaskStore`
 - [x] 33. One-time migration command: `onepact migrate json-to-sqlite`
-- [ ] 34. Switch default backend to SQLite behind a storage interface; keep JSON store for tests/back-compat
+- [x] 34. Switch default backend to SQLite behind a storage interface; keep JSON store for tests/back-compat
 - [ ] 35. `onepact export --format json` and `onepact export --format csv`
 - [ ] 36. `onepact import <file>` (round-trips with export)
 - [ ] 37. Automatic backup of the data file before destructive operations (`rm`, `migrate`)

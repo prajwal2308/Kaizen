@@ -13,7 +13,15 @@ from onepact.storage import JournalStore, Task, TaskStore
 def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr("onepact.cli.TaskStore", lambda: TaskStore(data_dir=tmp_path))
     monkeypatch.setattr("onepact.cli.JournalStore", lambda: JournalStore(data_dir=tmp_path))
-    monkeypatch.setattr("onepact.cli.load_config", lambda: load_config(data_dir=tmp_path))
+    # Existing tests target the JSON store directly (e.g. TaskStore(data_dir=tmp_path).load()
+    # below), so force backend="json" here regardless of the real default -- this is the
+    # "keep JSON store for tests/back-compat" half of switching the CLI's default backend
+    # to sqlite. Tests that specifically exercise sqlite-default behavior re-patch
+    # onepact.cli.load_config themselves to the unmodified function.
+    monkeypatch.setattr(
+        "onepact.cli.load_config",
+        lambda: {**load_config(data_dir=tmp_path), "backend": "json"},
+    )
     monkeypatch.setattr(
         "onepact.cli.set_config_value",
         lambda key, value: set_config_value(key, value, data_dir=tmp_path),
@@ -260,6 +268,109 @@ def test_migrate_refuses_to_overwrite_existing_sqlite_data(capsys, tmp_path):
 def test_migrate_invalid_direction_errors():
     with pytest.raises(SystemExit):
         main(["migrate", "sqlite-to-json"])
+
+
+def _use_real_backend_default(monkeypatch, tmp_path):
+    """Undoes the autouse fixture's forced backend="json" for a single test,
+    so `add`/`list`/etc. exercise whatever backend config.py actually
+    defaults to (sqlite).
+    """
+    monkeypatch.setattr("onepact.cli.load_config", lambda: load_config(data_dir=tmp_path))
+
+
+def test_default_backend_is_sqlite_when_unconfigured(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+
+    main(["add", "stored in sqlite"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "stored in sqlite" in out
+
+    assert SqliteTaskStore(data_dir=tmp_path).path.exists()
+    assert not TaskStore(data_dir=tmp_path).path.exists()
+
+
+def test_config_set_backend_json_switches_back_to_json_store(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    set_config_value("backend", "json", data_dir=tmp_path)
+
+    main(["add", "stored in json"])
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "stored in json" in out
+
+    assert TaskStore(data_dir=tmp_path).path.exists()
+    assert not SqliteTaskStore(data_dir=tmp_path).path.exists()
+
+
+def test_sqlite_backend_auto_migrates_existing_json_tasks(capsys, tmp_path, monkeypatch):
+    main(["add", "already in json", "--priority", "high", "--tag", "work"])
+    capsys.readouterr()
+
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "already in json" in out
+
+    sqlite_tasks = SqliteTaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in sqlite_tasks] == ["already in json"]
+    assert sqlite_tasks[0].priority == "high"
+    assert sqlite_tasks[0].tags == ["work"]
+    # A copy, not a move -- the JSON file is untouched.
+    json_tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in json_tasks] == ["already in json"]
+
+
+def test_sqlite_backend_does_not_re_migrate_once_db_exists(tmp_path, monkeypatch):
+    main(["add", "original"])
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["list"])  # triggers the one-time auto-migration
+
+    # A task added directly to the JSON store afterwards should not appear --
+    # the sqlite db already exists, so it's no longer auto-migrated from.
+    tasks = TaskStore(data_dir=tmp_path).load()
+    tasks.append(Task(id=2, title="added to json after migration"))
+    TaskStore(data_dir=tmp_path).save(tasks)
+
+    sqlite_tasks = SqliteTaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in sqlite_tasks] == ["original"]
+
+
+def test_migrate_command_ignores_backend_config(capsys, tmp_path):
+    (tmp_path / "config.toml").write_text('backend = "sqlite"\n')
+    main(["add", "json task"])
+    capsys.readouterr()
+
+    assert main(["migrate", "json-to-sqlite"]) == 0
+    out = capsys.readouterr().out
+    assert "Migrated 1 task(s)" in out
+    assert [t.title for t in TaskStore(data_dir=tmp_path).load()] == ["json task"]
+
+
+def test_journal_task_link_checks_active_backend(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["add", "task in sqlite"])
+    capsys.readouterr()
+
+    assert main(["journal", "note about it", "--task", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "linked to task #1" in out
+
+    assert main(["journal", "bad link", "--task", "999"]) == 1
+    err = capsys.readouterr().err
+    assert "No task with id 999" in err
+
+
+def test_config_set_backend_rejects_invalid_value(capsys):
+    assert main(["config", "set", "backend", "xml"]) == 1
+    err = capsys.readouterr().err
+    assert "Invalid value 'xml' for 'backend'" in err
+
+
+def test_config_set_backend_accepts_sqlite(tmp_path):
+    main(["config", "set", "backend", "sqlite"])
+    text = (tmp_path / "config.toml").read_text()
+    assert 'backend = "sqlite"' in text
 
 
 def test_add_with_priority_shown_in_list(capsys):

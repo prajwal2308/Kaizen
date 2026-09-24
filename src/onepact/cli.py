@@ -8,7 +8,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 
 from onepact.color import colorize, should_color
-from onepact.config import SUPPORTED_KEYS, load_config, set_config_value
+from onepact.config import BACKENDS, SUPPORTED_KEYS, load_config, set_config_value
 from onepact.sqlite_storage import SqliteTaskStore
 from onepact.storage import (
     PRIORITIES,
@@ -42,6 +42,23 @@ def _positive_int(value: str) -> int:
             f"invalid limit {value!r}, expected a positive integer"
         )
     return n
+
+
+def _get_task_store() -> TaskStore | SqliteTaskStore:
+    """Returns the active task store for the `backend` config key (default
+    sqlite). The first time sqlite is selected and its database doesn't
+    exist yet, any existing JSON tasks are copied over automatically so
+    switching the default doesn't strand data behind an explicit `migrate`
+    -- same copy semantics as cmd_migrate, and tasks.json is left as is.
+    """
+    if load_config()["backend"] == "json":
+        return TaskStore()
+    sqlite_store = SqliteTaskStore()
+    if not sqlite_store.path.exists():
+        json_tasks = TaskStore().load()
+        if json_tasks:
+            sqlite_store.save(json_tasks)
+    return sqlite_store
 
 
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
@@ -219,7 +236,7 @@ def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
         print("Empty entry, nothing journaled.", file=sys.stderr)
         return 1
     task_id = args.task
-    if task_id is not None and not any(t.id == task_id for t in TaskStore().load()):
+    if task_id is not None and not any(t.id == task_id for t in _get_task_store().load()):
         print(f"No task with id {task_id}", file=sys.stderr)
         return 1
     entries = store.load()
@@ -313,14 +330,14 @@ def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_config_show(_store: TaskStore, args: argparse.Namespace) -> int:
+def cmd_config_show(_store: None, args: argparse.Namespace) -> int:
     config = load_config()
     for key in sorted(config):
         print(f"{key} = {config[key]}")
     return 0
 
 
-def cmd_config_set(_store: TaskStore, args: argparse.Namespace) -> int:
+def cmd_config_set(_store: None, args: argparse.Namespace) -> int:
     if args.key not in SUPPORTED_KEYS:
         print(
             f"Unknown config key {args.key!r}. Supported keys: {', '.join(SUPPORTED_KEYS)}",
@@ -331,6 +348,13 @@ def cmd_config_set(_store: TaskStore, args: argparse.Namespace) -> int:
         print(
             f"Invalid value {args.value!r} for 'priority', "
             f"expected one of {', '.join(PRIORITIES)}",
+            file=sys.stderr,
+        )
+        return 1
+    if args.key == "backend" and args.value not in BACKENDS:
+        print(
+            f"Invalid value {args.value!r} for 'backend', "
+            f"expected one of {', '.join(BACKENDS)}",
             file=sys.stderr,
         )
         return 1
@@ -436,12 +460,12 @@ def build_parser() -> argparse.ArgumentParser:
     config_sub = p_config.add_subparsers(dest="config_command", required=True)
 
     p_config_show = config_sub.add_parser("show", help="Show current configuration")
-    p_config_show.set_defaults(func=cmd_config_show)
+    p_config_show.set_defaults(func=cmd_config_show, store_type="none")
 
     p_config_set = config_sub.add_parser("set", help="Set a configuration value")
     p_config_set.add_argument("key", help="Configuration key")
     p_config_set.add_argument("value", help="Configuration value")
-    p_config_set.set_defaults(func=cmd_config_set)
+    p_config_set.set_defaults(func=cmd_config_set, store_type="none")
 
     p_migrate = sub.add_parser(
         "migrate", help="One-time migration between storage backends"
@@ -451,7 +475,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("json-to-sqlite",),
         help="Migration direction",
     )
-    p_migrate.set_defaults(func=cmd_migrate)
+    p_migrate.set_defaults(func=cmd_migrate, store_type="json")
 
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)
@@ -519,7 +543,15 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
-    store = JournalStore() if getattr(args, "store_type", "task") == "journal" else TaskStore()
+    store_type = getattr(args, "store_type", "task")
+    if store_type == "journal":
+        store = JournalStore()
+    elif store_type == "json":
+        store = TaskStore()
+    elif store_type == "none":
+        store = None
+    else:
+        store = _get_task_store()
     return args.func(store, args)
 
 

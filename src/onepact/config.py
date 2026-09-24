@@ -6,7 +6,10 @@ from onepact.storage import DATA_DIR, DEFAULT_PRIORITY, PRIORITIES
 
 CONFIG_FILE = "config.toml"
 
-DEFAULTS: dict[str, str] = {"priority": DEFAULT_PRIORITY}
+BACKENDS = ("sqlite", "json")
+DEFAULT_BACKEND = "sqlite"
+
+DEFAULTS: dict[str, str] = {"priority": DEFAULT_PRIORITY, "backend": DEFAULT_BACKEND}
 SUPPORTED_KEYS = tuple(DEFAULTS)
 
 
@@ -46,6 +49,8 @@ def load_config(data_dir: Path | None = None) -> dict[str, str]:
         config.update(_parse_toml(path.read_text(encoding="utf-8")))
     if config.get("priority") not in PRIORITIES:
         config["priority"] = DEFAULT_PRIORITY
+    if config.get("backend") not in BACKENDS:
+        config["backend"] = DEFAULT_BACKEND
     return config
 
 

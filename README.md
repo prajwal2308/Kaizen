@@ -4,8 +4,9 @@ A local-first CLI for tasks, journaling, and daily review — built one small,
 real increment at a time. See [ROADMAP.md](ROADMAP.md) for the running build
 log and what's next, and [CHANGELOG.md](CHANGELOG.md) for what shipped when.
 [SCHEMA.md](SCHEMA.md) designs the SQLite schema implemented by
-`SqliteTaskStore` (`src/onepact/sqlite_storage.py`) — not yet the default
-backend; the CLI still runs entirely on the JSON stores.
+`SqliteTaskStore` (`src/onepact/sqlite_storage.py`), which is the default
+task storage backend as of this release; see
+[Storage backend](#storage-backend) below.
 
 ## Why
 
@@ -65,21 +66,33 @@ done as usual and creates the next occurrence — same title, priority,
 tags, and repeat setting — due one day (`daily`) or one week (`weekly`)
 from today.
 
-Tasks are stored as JSON in `~/.onepact/tasks.json`.
+Tasks are stored in `~/.onepact/onepact.db` (SQLite) by default; see
+[Storage backend](#storage-backend) for how to use JSON instead.
 
-## Migrating to SQLite
+## Storage backend
 
 ```bash
+onepact config set backend sqlite   # default
+onepact config set backend json
 onepact migrate json-to-sqlite
 ```
 
-Copies every task from `~/.onepact/tasks.json` into a new
-`~/.onepact/onepact.db` SQLite database (schema: [SCHEMA.md](SCHEMA.md)).
-It's a copy, not a move — the JSON file is untouched, and the command
-refuses to run again once `onepact.db` already has tasks in it, so you
-won't accidentally double up or overwrite data. This is a preview: the
-CLI doesn't read from SQLite yet, so nothing changes about how `onepact`
-behaves day to day until a later release switches the default backend.
+Tasks are stored either as a SQLite database (`~/.onepact/onepact.db`,
+schema: [SCHEMA.md](SCHEMA.md)) or as JSON (`~/.onepact/tasks.json`),
+controlled by the `backend` config key — `sqlite` is the default, `json`
+is kept for compatibility with earlier releases. The first time the
+sqlite backend is used and `onepact.db` doesn't exist yet, any tasks
+already in `tasks.json` are copied over automatically, so upgrading
+doesn't strand existing data behind a manual step. After that first copy
+the two stores are independent — further changes to one aren't reflected
+in the other, so switching `backend` back and forth won't merge them.
+
+`onepact migrate json-to-sqlite` does the same copy explicitly and on
+demand: it's a copy, not a move (`tasks.json` is untouched either way),
+and it refuses to run again once `onepact.db` already has tasks in it, so
+it can't accidentally double up or overwrite data. It always reads from
+the JSON store and writes to the SQLite store by name, regardless of
+which backend is currently active.
 
 ## Configuration
 
@@ -90,15 +103,17 @@ onepact config set priority high
 
 `config show` prints the current configuration; `config set <key> <value>`
 writes a value to `~/.onepact/config.toml` (creating it if needed) and
-rejects unknown keys or, for `priority`, values that aren't `low`/`med`/
-`high` — nothing is written on an invalid `set`. Right now the only
-supported key is `priority` — the default `add` uses when `--priority` is
-omitted (an explicit `--priority` still wins). You can also edit the file
-directly:
+rejects unknown keys, or invalid values for a known key (`priority` must
+be `low`/`med`/`high`, `backend` must be `sqlite`/`json`) — nothing is
+written on an invalid `set`. Supported keys: `priority` — the default
+`add` uses when `--priority` is omitted (an explicit `--priority` still
+wins) — and `backend` — which task store `onepact` uses, see
+[Storage backend](#storage-backend). You can also edit the file directly:
 
 ```toml
 # ~/.onepact/config.toml
 priority = "high"
+backend = "json"
 ```
 
 ## Color

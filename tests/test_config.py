@@ -43,6 +43,24 @@ def test_supported_keys_includes_priority():
     assert "priority" in SUPPORTED_KEYS
 
 
+def test_load_config_defaults_backend_to_sqlite(tmp_path):
+    assert load_config(data_dir=tmp_path)["backend"] == "sqlite"
+
+
+def test_load_config_reads_backend_from_file(tmp_path):
+    (tmp_path / "config.toml").write_text('backend = "json"\n')
+    assert load_config(data_dir=tmp_path)["backend"] == "json"
+
+
+def test_load_config_falls_back_on_invalid_backend(tmp_path):
+    (tmp_path / "config.toml").write_text('backend = "postgres"\n')
+    assert load_config(data_dir=tmp_path)["backend"] == "sqlite"
+
+
+def test_supported_keys_includes_backend():
+    assert "backend" in SUPPORTED_KEYS
+
+
 def test_set_config_value_creates_file(tmp_path):
     set_config_value("priority", "high", data_dir=tmp_path)
     assert load_config(data_dir=tmp_path)["priority"] == "high"
