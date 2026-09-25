@@ -94,6 +94,23 @@ it can't accidentally double up or overwrite data. It always reads from
 the JSON store and writes to the SQLite store by name, regardless of
 which backend is currently active.
 
+## Export
+
+```bash
+onepact export --format json
+onepact export --format csv
+onepact export --format json --output backup.json
+onepact export --format csv -o tasks.csv
+```
+
+Prints every task from whichever backend is currently active as JSON or
+CSV; add `--output`/`-o <file>` to write to a file instead of stdout. The
+`json` format is the same array-of-objects shape as `tasks.json`, so it's
+a full-fidelity dump of every field. The `csv` format has one row per
+task with a header (`id,title,priority,due,done,done_at,created_at,tags,repeat`);
+`tags` are joined with `;` since a task can have several and CSV already
+uses `,` as its own delimiter.
+
 ## Configuration
 
 ```bash

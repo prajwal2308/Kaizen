@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
+import json
 import os
 import subprocess
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from onepact.color import colorize, should_color
 from onepact.config import BACKENDS, SUPPORTED_KEYS, load_config, set_config_value
@@ -379,6 +383,54 @@ def cmd_migrate(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+_EXPORT_CSV_FIELDS = (
+    "id",
+    "title",
+    "priority",
+    "due",
+    "done",
+    "done_at",
+    "created_at",
+    "tags",
+    "repeat",
+)
+
+
+def _tasks_to_csv(tasks: list[Task]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(_EXPORT_CSV_FIELDS)
+    for t in tasks:
+        writer.writerow(
+            [
+                t.id,
+                t.title,
+                t.priority,
+                t.due or "",
+                "true" if t.done else "false",
+                t.done_at or "",
+                t.created_at,
+                ";".join(t.tags),
+                t.repeat or "",
+            ]
+        )
+    return buf.getvalue()
+
+
+def cmd_export(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    if args.format == "json":
+        text = json.dumps([t.to_dict() for t in tasks], indent=2)
+    else:
+        text = _tasks_to_csv(tasks).rstrip("\n")
+    if args.output:
+        Path(args.output).write_text(text + "\n", encoding="utf-8")
+        print(f"Exported {len(tasks)} task(s) to {args.output}")
+    else:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="onepact", description="A local-first task and journal CLI."
@@ -476,6 +528,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Migration direction",
     )
     p_migrate.set_defaults(func=cmd_migrate, store_type="json")
+
+    p_export = sub.add_parser("export", help="Export tasks as JSON or CSV")
+    p_export.add_argument(
+        "--format",
+        choices=("json", "csv"),
+        required=True,
+        help="Export format",
+    )
+    p_export.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Write to this file instead of stdout",
+    )
+    p_export.set_defaults(func=cmd_export)
 
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)

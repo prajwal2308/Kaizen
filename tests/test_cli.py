@@ -1,3 +1,6 @@
+import csv
+import io
+import json
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -371,6 +374,102 @@ def test_config_set_backend_accepts_sqlite(tmp_path):
     main(["config", "set", "backend", "sqlite"])
     text = (tmp_path / "config.toml").read_text()
     assert 'backend = "sqlite"' in text
+
+
+def test_export_json_to_stdout(capsys):
+    main(["add", "write tests", "--priority", "high", "--tag", "work", "--tag", "urgent"])
+    main(["add", "ship it", "--due", "2026-09-22", "--repeat", "weekly"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    assert main(["export", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    tasks = json.loads(out)
+    assert [t["title"] for t in tasks] == ["write tests", "ship it"]
+    assert tasks[0]["priority"] == "high"
+    assert tasks[0]["tags"] == ["work", "urgent"]
+    assert tasks[0]["done"] is True
+    assert tasks[0]["done_at"] is not None
+    assert tasks[1]["due"] == "2026-09-22"
+    assert tasks[1]["repeat"] == "weekly"
+
+
+def test_export_json_empty_store(capsys):
+    assert main(["export", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    assert json.loads(out) == []
+
+
+def test_export_csv_to_stdout(capsys):
+    main(["add", "write tests", "--priority", "high", "--tag", "work", "--tag", "urgent"])
+    main(["add", "ship it", "--due", "2026-09-22", "--repeat", "weekly"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    assert main(["export", "--format", "csv"]) == 0
+    out = capsys.readouterr().out
+    rows = list(csv.reader(io.StringIO(out)))
+    assert rows[0] == [
+        "id", "title", "priority", "due", "done", "done_at", "created_at", "tags", "repeat",
+    ]
+    assert rows[1][0:5] == ["1", "write tests", "high", "", "true"]
+    assert rows[1][7] == "work;urgent"
+    assert rows[2][0:5] == ["2", "ship it", "med", "2026-09-22", "false"]
+    assert rows[2][8] == "weekly"
+
+
+def test_export_csv_empty_store(capsys):
+    assert main(["export", "--format", "csv"]) == 0
+    out = capsys.readouterr().out
+    rows = list(csv.reader(io.StringIO(out)))
+    assert len(rows) == 1
+    assert rows[0][0] == "id"
+
+
+def test_export_json_to_file(capsys, tmp_path):
+    main(["add", "write tests"])
+    capsys.readouterr()
+
+    out_file = tmp_path / "export.json"
+    assert main(["export", "--format", "json", "--output", str(out_file)]) == 0
+    msg = capsys.readouterr().out
+    assert f"Exported 1 task(s) to {out_file}" in msg
+
+    tasks = json.loads(out_file.read_text())
+    assert [t["title"] for t in tasks] == ["write tests"]
+
+
+def test_export_csv_to_file(capsys, tmp_path):
+    main(["add", "write tests"])
+    capsys.readouterr()
+
+    out_file = tmp_path / "export.csv"
+    assert main(["export", "--format", "csv", "-o", str(out_file)]) == 0
+    msg = capsys.readouterr().out
+    assert f"Exported 1 task(s) to {out_file}" in msg
+
+    rows = list(csv.reader(io.StringIO(out_file.read_text())))
+    assert rows[1][1] == "write tests"
+
+
+def test_export_requires_format():
+    with pytest.raises(SystemExit):
+        main(["export"])
+
+
+def test_export_rejects_invalid_format():
+    with pytest.raises(SystemExit):
+        main(["export", "--format", "xml"])
+
+
+def test_export_reads_from_active_backend(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["add", "stored in sqlite"])
+    capsys.readouterr()
+
+    assert main(["export", "--format", "json"]) == 0
+    tasks = json.loads(capsys.readouterr().out)
+    assert [t["title"] for t in tasks] == ["stored in sqlite"]
 
 
 def test_add_with_priority_shown_in_list(capsys):
