@@ -472,6 +472,132 @@ def test_export_reads_from_active_backend(capsys, tmp_path, monkeypatch):
     assert [t["title"] for t in tasks] == ["stored in sqlite"]
 
 
+def test_import_json_round_trips_with_export(capsys, tmp_path):
+    main(["add", "write tests", "--priority", "high", "--tag", "work", "--tag", "urgent"])
+    main(["add", "ship it", "--due", "2026-09-22", "--repeat", "weekly"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    export_file = tmp_path / "export.json"
+    main(["export", "--format", "json", "--output", str(export_file)])
+    original = TaskStore(data_dir=tmp_path).load()
+
+    # Clear the store, then import the export back in.
+    TaskStore(data_dir=tmp_path).save([])
+    capsys.readouterr()
+
+    assert main(["import", str(export_file)]) == 0
+    out = capsys.readouterr().out
+    assert f"Imported 2 task(s) from {export_file}" in out
+
+    imported = TaskStore(data_dir=tmp_path).load()
+    assert len(imported) == 2
+    for orig, got in zip(original, imported):
+        assert got.title == orig.title
+        assert got.priority == orig.priority
+        assert got.due == orig.due
+        assert got.tags == orig.tags
+        assert got.repeat == orig.repeat
+        assert got.done == orig.done
+        assert got.done_at == orig.done_at
+        assert got.created_at == orig.created_at
+
+
+def test_import_csv_round_trips_with_export(capsys, tmp_path):
+    main(["add", "write tests", "--priority", "high", "--tag", "work", "--tag", "urgent"])
+    main(["add", "ship it", "--due", "2026-09-22", "--repeat", "weekly"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    export_file = tmp_path / "export.csv"
+    main(["export", "--format", "csv", "--output", str(export_file)])
+    original = TaskStore(data_dir=tmp_path).load()
+
+    TaskStore(data_dir=tmp_path).save([])
+    capsys.readouterr()
+
+    assert main(["import", str(export_file)]) == 0
+    imported = TaskStore(data_dir=tmp_path).load()
+    assert len(imported) == 2
+    for orig, got in zip(original, imported):
+        assert got.title == orig.title
+        assert got.priority == orig.priority
+        assert got.due == orig.due
+        assert got.tags == orig.tags
+        assert got.repeat == orig.repeat
+        assert got.done == orig.done
+        assert got.done_at == orig.done_at
+
+
+def test_import_infers_format_from_extension(tmp_path):
+    (tmp_path / "data.json").write_text(json.dumps([{"id": 1, "title": "from json ext"}]))
+    main(["import", str(tmp_path / "data.json")])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["from json ext"]
+
+
+def test_import_format_flag_overrides_extension(tmp_path):
+    (tmp_path / "data.txt").write_text(json.dumps([{"id": 1, "title": "from txt override"}]))
+    main(["import", str(tmp_path / "data.txt"), "--format", "json"])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["from txt override"]
+
+
+def test_import_unknown_extension_without_format_errors(capsys, tmp_path):
+    data_file = tmp_path / "data.txt"
+    data_file.write_text("[]")
+    assert main(["import", str(data_file)]) == 1
+    err = capsys.readouterr().err
+    assert "Cannot infer format" in err
+
+
+def test_import_missing_file_errors(capsys, tmp_path):
+    missing = tmp_path / "missing.json"
+    assert main(["import", str(missing)]) == 1
+    err = capsys.readouterr().err
+    assert f"No such file: {missing}" in err
+
+
+def test_import_malformed_json_errors(capsys, tmp_path):
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("not json")
+    assert main(["import", str(bad_file)]) == 1
+    err = capsys.readouterr().err
+    assert f"Could not parse {bad_file} as json" in err
+
+
+def test_import_appends_to_existing_tasks_with_new_ids(tmp_path):
+    main(["add", "already here"])
+    export_file = tmp_path / "export.json"
+    main(["export", "--format", "json", "--output", str(export_file)])
+
+    main(["import", str(export_file)])
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["already here", "already here"]
+    assert [t.id for t in tasks] == [1, 2]
+
+
+def test_import_json_missing_optional_fields_uses_defaults(tmp_path):
+    (tmp_path / "minimal.json").write_text(json.dumps([{"id": 1, "title": "bare minimum"}]))
+    main(["import", str(tmp_path / "minimal.json")])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[0].priority == "med"
+    assert tasks[0].done is False
+    assert tasks[0].tags == []
+
+
+def test_import_writes_to_active_backend(capsys, tmp_path, monkeypatch):
+    export_file = tmp_path / "export.json"
+    export_file.write_text(json.dumps([{"id": 1, "title": "goes to sqlite"}]))
+
+    _use_real_backend_default(monkeypatch, tmp_path)
+    assert main(["import", str(export_file)]) == 0
+
+    tasks = SqliteTaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["goes to sqlite"]
+
+
 def test_add_with_priority_shown_in_list(capsys):
     main(["add", "fix the outage", "--priority", "high"])
     main(["list"])

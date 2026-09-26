@@ -60,7 +60,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 33. One-time migration command: `onepact migrate json-to-sqlite`
 - [x] 34. Switch default backend to SQLite behind a storage interface; keep JSON store for tests/back-compat
 - [x] 35. `onepact export --format json` and `onepact export --format csv`
-- [ ] 36. `onepact import <file>` (round-trips with export)
+- [x] 36. `onepact import <file>` (round-trips with export)
 - [ ] 37. Automatic backup of the data file before destructive operations (`rm`, `migrate`)
 - [ ] 38. `onepact undo` — revert the last destructive action (single-level undo log)
 - [ ] 39. Data integrity tests: migration round-trip, export/import round-trip

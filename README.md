@@ -94,22 +94,35 @@ it can't accidentally double up or overwrite data. It always reads from
 the JSON store and writes to the SQLite store by name, regardless of
 which backend is currently active.
 
-## Export
+## Export & import
 
 ```bash
 onepact export --format json
 onepact export --format csv
 onepact export --format json --output backup.json
 onepact export --format csv -o tasks.csv
+onepact import backup.json
+onepact import tasks.csv
+onepact import some-file --format json
 ```
 
-Prints every task from whichever backend is currently active as JSON or
-CSV; add `--output`/`-o <file>` to write to a file instead of stdout. The
-`json` format is the same array-of-objects shape as `tasks.json`, so it's
-a full-fidelity dump of every field. The `csv` format has one row per
-task with a header (`id,title,priority,due,done,done_at,created_at,tags,repeat`);
-`tags` are joined with `;` since a task can have several and CSV already
-uses `,` as its own delimiter.
+`export` prints every task from whichever backend is currently active as
+JSON or CSV; add `--output`/`-o <file>` to write to a file instead of
+stdout. The `json` format is the same array-of-objects shape as
+`tasks.json`, so it's a full-fidelity dump of every field. The `csv`
+format has one row per task with a header
+(`id,title,priority,due,done,done_at,created_at,tags,repeat`); `tags` are
+joined with `;` since a task can have several and CSV already uses `,`
+as its own delimiter.
+
+`import <file>` reads tasks back from a file `export` produced (or any
+file in the same shape) and adds them to whichever backend is currently
+active, so `export` and `import` round-trip a task list. The format is
+inferred from the file's `.json`/`.csv` extension, or set explicitly with
+`--format`. Every field carries over except `id` — each imported task
+gets a fresh one from the active store, so importing never overwrites or
+collides with tasks you already have; run it against an empty store (or
+a fresh backend) if you want an exact restore, including ids.
 
 ## Configuration
 

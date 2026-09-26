@@ -15,6 +15,7 @@ from onepact.color import colorize, should_color
 from onepact.config import BACKENDS, SUPPORTED_KEYS, load_config, set_config_value
 from onepact.sqlite_storage import SqliteTaskStore
 from onepact.storage import (
+    DEFAULT_PRIORITY,
     PRIORITIES,
     REPEATS,
     Entry,
@@ -431,6 +432,67 @@ def cmd_export(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def _infer_export_format(path: Path) -> str | None:
+    suffix = path.suffix.lower()
+    if suffix == ".json":
+        return "json"
+    if suffix == ".csv":
+        return "csv"
+    return None
+
+
+def _tasks_from_csv(text: str) -> list[Task]:
+    reader = csv.DictReader(io.StringIO(text))
+    tasks = []
+    for row in reader:
+        tags = [tag for tag in (row.get("tags") or "").split(";") if tag]
+        tasks.append(
+            Task(
+                id=0,
+                title=row.get("title", ""),
+                created_at=row.get("created_at") or "",
+                done=(row.get("done") or "").strip().lower() == "true",
+                done_at=row.get("done_at") or None,
+                priority=row.get("priority") or DEFAULT_PRIORITY,
+                due=row.get("due") or None,
+                tags=tags,
+                repeat=row.get("repeat") or None,
+            )
+        )
+    return tasks
+
+
+def cmd_import(store: TaskStore, args: argparse.Namespace) -> int:
+    path = Path(args.file)
+    if not path.exists():
+        print(f"No such file: {path}", file=sys.stderr)
+        return 1
+    fmt = args.format or _infer_export_format(path)
+    if fmt is None:
+        print(
+            f"Cannot infer format from {path.suffix!r}; pass --format json|csv",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        if fmt == "json":
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            imported = [Task.from_dict(item) for item in raw]
+        else:
+            imported = _tasks_from_csv(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, csv.Error, KeyError, TypeError) as exc:
+        print(f"Could not parse {path} as {fmt}: {exc}", file=sys.stderr)
+        return 1
+
+    tasks = store.load()
+    for t in imported:
+        t.id = store.next_id(tasks)
+        tasks.append(t)
+    store.save(tasks)
+    print(f"Imported {len(imported)} task(s) from {path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="onepact", description="A local-first task and journal CLI."
@@ -543,6 +605,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write to this file instead of stdout",
     )
     p_export.set_defaults(func=cmd_export)
+
+    p_import = sub.add_parser("import", help="Import tasks from a JSON or CSV export")
+    p_import.add_argument("file", help="Path to a file produced by `export`")
+    p_import.add_argument(
+        "--format",
+        choices=("json", "csv"),
+        default=None,
+        help="Import format (default: inferred from the file extension)",
+    )
+    p_import.set_defaults(func=cmd_import)
 
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)
