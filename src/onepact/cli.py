@@ -5,6 +5,7 @@ import csv
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,22 @@ def _get_task_store() -> TaskStore | SqliteTaskStore:
         if json_tasks:
             sqlite_store.save(json_tasks)
     return sqlite_store
+
+
+def _backup_file(path: Path) -> Path | None:
+    """Copies `path` into a timestamped file under its parent's `backups/`
+    directory before a destructive operation (`rm`, `migrate`) overwrites
+    it. A no-op, returning None, if `path` doesn't exist yet -- there's
+    nothing to protect.
+    """
+    if not path.exists():
+        return None
+    backup_dir = path.parent / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+    backup_path = backup_dir / f"{path.name}.{timestamp}.bak"
+    shutil.copy2(path, backup_path)
+    return backup_path
 
 
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
@@ -330,8 +347,11 @@ def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     if len(remaining) == len(tasks):
         print(f"No task with id {args.id}", file=sys.stderr)
         return 1
+    backup_path = _backup_file(store.path)
     store.save(remaining)
     print(f"Removed #{args.id}")
+    if backup_path is not None:
+        print(f"Backed up previous data to {backup_path}")
     return 0
 
 
@@ -379,8 +399,11 @@ def cmd_migrate(store: TaskStore, args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    backup_path = _backup_file(sqlite_store.path)
     sqlite_store.save(tasks)
     print(f"Migrated {len(tasks)} task(s) from {store.path} to {sqlite_store.path}")
+    if backup_path is not None:
+        print(f"Backed up previous data to {backup_path}")
     return 0
 
 

@@ -124,6 +124,14 @@ gets a fresh one from the active store, so importing never overwrites or
 collides with tasks you already have; run it against an empty store (or
 a fresh backend) if you want an exact restore, including ids.
 
+## Backups
+
+`rm` and `migrate json-to-sqlite` copy the file they're about to
+overwrite into `~/.onepact/backups/` (timestamped) before writing, so a
+mistaken removal or migration always has a copy to recover from. Nothing
+is backed up the first time either command runs against a fresh data
+directory — there's nothing there yet to protect.
+
 ## Configuration
 
 ```bash

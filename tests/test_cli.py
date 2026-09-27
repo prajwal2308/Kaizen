@@ -942,6 +942,53 @@ def test_rm_unknown_id_errors():
     assert main(["rm", "999"]) == 1
 
 
+def test_rm_backs_up_data_before_removing(capsys, tmp_path):
+    main(["add", "task one"])
+    main(["add", "task two"])
+    before = (tmp_path / "tasks.json").read_text()
+    capsys.readouterr()
+
+    assert main(["rm", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "Removed #1" in out
+    assert "Backed up previous data to" in out
+
+    backups = list((tmp_path / "backups").glob("tasks.json.*.bak"))
+    assert len(backups) == 1
+    assert backups[0].read_text() == before
+
+
+def test_rm_unknown_id_creates_no_backup(tmp_path):
+    main(["add", "task one"])
+    main(["rm", "999"])
+    assert not (tmp_path / "backups").exists()
+
+
+def test_rm_backs_up_from_active_backend(tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["add", "task in sqlite"])
+
+    assert main(["rm", "1"]) == 0
+    backups = list((tmp_path / "backups").glob("onepact.db.*.bak"))
+    assert len(backups) == 1
+
+
+def test_migrate_backs_up_existing_sqlite_file_before_overwrite(tmp_path):
+    SqliteTaskStore(data_dir=tmp_path).save([])
+    main(["add", "new task"])
+
+    assert main(["migrate", "json-to-sqlite"]) == 0
+
+    backups = list((tmp_path / "backups").glob("onepact.db.*.bak"))
+    assert len(backups) == 1
+
+
+def test_migrate_creates_no_backup_on_first_run(tmp_path):
+    main(["add", "new task"])
+    main(["migrate", "json-to-sqlite"])
+    assert not (tmp_path / "backups").exists()
+
+
 def test_find_matches_task_titles(capsys):
     main(["add", "write the onboarding docs"])
     main(["add", "fix a parser bug"])
