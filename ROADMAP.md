@@ -62,7 +62,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 35. `onepact export --format json` and `onepact export --format csv`
 - [x] 36. `onepact import <file>` (round-trips with export)
 - [x] 37. Automatic backup of the data file before destructive operations (`rm`, `migrate`)
-- [ ] 38. `onepact undo` — revert the last destructive action (single-level undo log)
+- [x] 38. `onepact undo` — revert the last destructive action (single-level undo log)
 - [ ] 39. Data integrity tests: migration round-trip, export/import round-trip
 - [ ] 40. Document data locations and backup strategy in README
 

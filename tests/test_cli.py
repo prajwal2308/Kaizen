@@ -989,6 +989,90 @@ def test_migrate_creates_no_backup_on_first_run(tmp_path):
     assert not (tmp_path / "backups").exists()
 
 
+def test_undo_reverts_rm(capsys, tmp_path):
+    main(["add", "task one"])
+    main(["add", "task two"])
+    capsys.readouterr()
+
+    main(["rm", "1"])
+    capsys.readouterr()
+
+    assert main(["undo"]) == 0
+    out = capsys.readouterr().out
+    assert "Restored" in out
+    assert "undoing the last destructive action" in out
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["task one", "task two"]
+
+
+def test_undo_consumes_the_backup(tmp_path):
+    main(["add", "task one"])
+    main(["rm", "1"])
+
+    assert main(["undo"]) == 0
+    assert not list((tmp_path / "backups").glob("*.bak"))
+
+
+def test_undo_twice_in_a_row_errors_the_second_time(capsys, tmp_path):
+    main(["add", "task one"])
+    main(["rm", "1"])
+    main(["undo"])
+    capsys.readouterr()
+
+    assert main(["undo"]) == 1
+    err = capsys.readouterr().err
+    assert "Nothing to undo" in err
+
+
+def test_undo_with_no_prior_destructive_action_errors(capsys):
+    assert main(["undo"]) == 1
+    err = capsys.readouterr().err
+    assert "Nothing to undo" in err
+
+
+def test_undo_only_reverts_the_most_recent_action(tmp_path):
+    main(["add", "task one"])
+    main(["add", "task two"])
+    main(["rm", "1"])
+    main(["rm", "2"])
+
+    assert main(["undo"]) == 0
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["task two"]
+
+    # The undo log is single-level: the still-older backup from the first
+    # rm is left on disk untouched, but it's no longer reachable via undo.
+    assert main(["undo"]) == 1
+
+
+def test_undo_reverts_migrate(tmp_path):
+    SqliteTaskStore(data_dir=tmp_path).save([])
+    main(["add", "new task"])
+    main(["migrate", "json-to-sqlite"])
+
+    assert main(["undo"]) == 0
+    assert SqliteTaskStore(data_dir=tmp_path).load() == []
+
+
+def test_undo_does_not_apply_to_first_ever_migrate(tmp_path):
+    main(["add", "new task"])
+    main(["migrate", "json-to-sqlite"])
+
+    assert main(["undo"]) == 1
+
+
+def test_undo_handles_a_missing_backup_file_gracefully(capsys, tmp_path):
+    main(["add", "task one"])
+    main(["rm", "1"])
+    for backup in (tmp_path / "backups").glob("*.bak"):
+        backup.unlink()
+
+    assert main(["undo"]) == 1
+    err = capsys.readouterr().err
+    assert "Nothing to undo" in err
+
+
 def test_find_matches_task_titles(capsys):
     main(["add", "write the onboarding docs"])
     main(["add", "fix a parser bug"])

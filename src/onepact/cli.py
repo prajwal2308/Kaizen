@@ -83,6 +83,22 @@ def _backup_file(path: Path) -> Path | None:
     return backup_path
 
 
+_UNDO_LOG_FILE = ".undo.json"
+
+
+def _record_undo(data_dir: Path, target: Path, backup: Path) -> None:
+    """Points the single-level undo log at `backup` as the way to revert
+    `target` to how it was before the destructive write that just made
+    this backup. Overwrites whatever the log previously pointed at --
+    only the most recent reversible action is ever undoable.
+    """
+    log_path = data_dir / _UNDO_LOG_FILE
+    log_path.write_text(
+        json.dumps({"target": str(target), "backup": str(backup)}),
+        encoding="utf-8",
+    )
+
+
 def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     tags = list(dict.fromkeys(args.tags or []))
@@ -352,6 +368,7 @@ def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     print(f"Removed #{args.id}")
     if backup_path is not None:
         print(f"Backed up previous data to {backup_path}")
+        _record_undo(store.data_dir, store.path, backup_path)
     return 0
 
 
@@ -404,6 +421,26 @@ def cmd_migrate(store: TaskStore, args: argparse.Namespace) -> int:
     print(f"Migrated {len(tasks)} task(s) from {store.path} to {sqlite_store.path}")
     if backup_path is not None:
         print(f"Backed up previous data to {backup_path}")
+        _record_undo(sqlite_store.data_dir, sqlite_store.path, backup_path)
+    return 0
+
+
+def cmd_undo(_store: None, args: argparse.Namespace) -> int:
+    data_dir = TaskStore().data_dir
+    log_path = data_dir / _UNDO_LOG_FILE
+    if not log_path.exists():
+        print("Nothing to undo.", file=sys.stderr)
+        return 1
+    entry = json.loads(log_path.read_text(encoding="utf-8"))
+    target = Path(entry["target"])
+    backup = Path(entry["backup"])
+    log_path.unlink()
+    if not backup.exists():
+        print("Nothing to undo.", file=sys.stderr)
+        return 1
+    shutil.copy2(backup, target)
+    backup.unlink()
+    print(f"Restored {target} from backup, undoing the last destructive action.")
     return 0
 
 
@@ -592,6 +629,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove a task")
     p_rm.add_argument("id", type=int, help="Task id")
     p_rm.set_defaults(func=cmd_rm)
+
+    p_undo = sub.add_parser(
+        "undo", help="Revert the last destructive action (rm or migrate)"
+    )
+    p_undo.set_defaults(func=cmd_undo, store_type="none")
 
     p_config = sub.add_parser("config", help="View or change configuration")
     config_sub = p_config.add_subparsers(dest="config_command", required=True)

@@ -126,11 +126,22 @@ a fresh backend) if you want an exact restore, including ids.
 
 ## Backups
 
+```bash
+onepact undo
+```
+
 `rm` and `migrate json-to-sqlite` copy the file they're about to
 overwrite into `~/.onepact/backups/` (timestamped) before writing, so a
 mistaken removal or migration always has a copy to recover from. Nothing
 is backed up the first time either command runs against a fresh data
 directory — there's nothing there yet to protect.
+
+`onepact undo` reverts the most recent `rm` or `migrate`, restoring
+whatever it backed up. It's a single-level undo: only the very last
+reversible action can be undone, so running `undo` twice in a row (with
+nothing destructive in between) reports "Nothing to undo" the second
+time rather than reaching further back — even if older backups are
+still sitting in `backups/` from earlier in the day.
 
 ## Configuration
 
