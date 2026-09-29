@@ -273,6 +273,36 @@ def test_migrate_invalid_direction_errors():
         main(["migrate", "sqlite-to-json"])
 
 
+def test_migrate_round_trip_preserves_every_field(tmp_path):
+    main(["add", "no due, no tags, low priority", "--priority", "low"])
+    main(
+        ["add", "multi-tag high priority", "--priority", "high", "--tag", "work",
+         "--tag", "urgent", "--tag", "home"]
+    )
+    main(["add", "due and weekly repeat", "--due", "2026-10-01", "--repeat", "weekly"])
+    main(["add", "daily repeat, will be completed", "--repeat", "daily"])
+    main(["done", "4"])
+
+    original = TaskStore(data_dir=tmp_path).load()
+    # #5 is the auto-created next occurrence of the completed daily task.
+    assert [t.id for t in original] == [1, 2, 3, 4, 5]
+
+    assert main(["migrate", "json-to-sqlite"]) == 0
+
+    migrated = SqliteTaskStore(data_dir=tmp_path).load()
+    assert len(migrated) == len(original)
+    for orig, got in zip(original, migrated):
+        assert got.id == orig.id
+        assert got.title == orig.title
+        assert got.created_at == orig.created_at
+        assert got.done == orig.done
+        assert got.done_at == orig.done_at
+        assert got.priority == orig.priority
+        assert got.due == orig.due
+        assert got.tags == orig.tags
+        assert got.repeat == orig.repeat
+
+
 def _use_real_backend_default(monkeypatch, tmp_path):
     """Undoes the autouse fixture's forced backend="json" for a single test,
     so `add`/`list`/etc. exercise whatever backend config.py actually
@@ -596,6 +626,34 @@ def test_import_writes_to_active_backend(capsys, tmp_path, monkeypatch):
 
     tasks = SqliteTaskStore(data_dir=tmp_path).load()
     assert [t.title for t in tasks] == ["goes to sqlite"]
+
+
+def test_export_import_round_trip_via_sqlite_backend(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["add", "write tests", "--priority", "high", "--tag", "work", "--tag", "urgent"])
+    main(["add", "ship it", "--due", "2026-09-22", "--repeat", "weekly"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    export_file = tmp_path / "export.json"
+    main(["export", "--format", "json", "--output", str(export_file)])
+    original = SqliteTaskStore(data_dir=tmp_path).load()
+
+    SqliteTaskStore(data_dir=tmp_path).save([])
+    capsys.readouterr()
+
+    assert main(["import", str(export_file)]) == 0
+    imported = SqliteTaskStore(data_dir=tmp_path).load()
+    assert len(imported) == 2
+    for orig, got in zip(original, imported):
+        assert got.title == orig.title
+        assert got.priority == orig.priority
+        assert got.due == orig.due
+        assert got.tags == orig.tags
+        assert got.repeat == orig.repeat
+        assert got.done == orig.done
+        assert got.done_at == orig.done_at
+        assert got.created_at == orig.created_at
 
 
 def test_add_with_priority_shown_in_list(capsys):
