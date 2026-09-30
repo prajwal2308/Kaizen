@@ -124,7 +124,18 @@ gets a fresh one from the active store, so importing never overwrites or
 collides with tasks you already have; run it against an empty store (or
 a fresh backend) if you want an exact restore, including ids.
 
-## Backups
+## Data & backups
+
+Everything onepact stores lives under `~/.onepact/`:
+
+| Path                    | What it is                                              |
+| ------------------------ | -------------------------------------------------------- |
+| `onepact.db`             | Tasks, if `backend` is `sqlite` (the default)             |
+| `tasks.json`              | Tasks, if `backend` is `json`                             |
+| `journal.json`            | Journal entries — always JSON, regardless of `backend`    |
+| `config.toml`              | Settings written by `config set` (or edited by hand)     |
+| `backups/`                 | Timestamped snapshots made before `rm`/`migrate` write    |
+| `.undo.json`                | Pointer used by `undo`; managed automatically             |
 
 ```bash
 onepact undo
@@ -142,6 +153,14 @@ reversible action can be undone, so running `undo` twice in a row (with
 nothing destructive in between) reports "Nothing to undo" the second
 time rather than reaching further back — even if older backups are
 still sitting in `backups/` from earlier in the day.
+
+These automatic backups protect against a bad `rm` or `migrate`, but
+they live inside `~/.onepact/` itself, so they're no help if that whole
+directory is lost, moved, or corrupted. For real disaster recovery, use
+[`export`](#export--import) to write a copy of your tasks somewhere
+else entirely — a synced folder, another drive, version control — on
+whatever cadence matters to you; `import` brings it back on a fresh
+install or after a real loss, not just a single bad command.
 
 ## Configuration
 
