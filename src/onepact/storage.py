@@ -13,6 +13,7 @@ def _default_data_dir() -> Path:
 DATA_DIR = _default_data_dir()
 DATA_FILE = "tasks.json"
 JOURNAL_FILE = "journal.json"
+HABIT_FILE = "habits.json"
 
 PRIORITIES = ("low", "med", "high")
 DEFAULT_PRIORITY = "med"
@@ -128,3 +129,49 @@ class JournalStore:
 
     def next_id(self, entries: list[Entry]) -> int:
         return max((e.id for e in entries), default=0) + 1
+
+
+@dataclass
+class Habit:
+    name: str
+    frequency: str
+    streak: int = 0
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    last_checked: str | None = None
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Habit:
+        return cls(
+            name=data["name"],
+            frequency=data.get("frequency", "daily"),
+            streak=data.get("streak", 0),
+            created_at=data.get("created_at", ""),
+            last_checked=data.get("last_checked"),
+        )
+
+
+class HabitStore:
+    """Persists habits as JSON in their own file, separate from tasks and
+    journal entries. Habits are identified by name rather than an int id,
+    since every roadmapped habit command (`add`, `check`, `list`) refers to
+    one by name.
+    """
+
+    def __init__(self, data_dir: Path | None = None):
+        self.data_dir = data_dir or DATA_DIR
+        self.path = self.data_dir / HABIT_FILE
+
+    def load(self) -> list[Habit]:
+        if not self.path.exists():
+            return []
+        with self.path.open("r", encoding="utf-8") as f:
+            raw = json.load(f)
+        return [Habit.from_dict(item) for item in raw]
+
+    def save(self, habits: list[Habit]) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as f:
+            json.dump([h.to_dict() for h in habits], f, indent=2)

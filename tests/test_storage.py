@@ -1,4 +1,13 @@
-from onepact.storage import Entry, JournalStore, Task, TaskStore, is_overdue, priority_rank
+from onepact.storage import (
+    Entry,
+    Habit,
+    HabitStore,
+    JournalStore,
+    Task,
+    TaskStore,
+    is_overdue,
+    priority_rank,
+)
 
 
 def test_task_defaults_to_med_priority():
@@ -153,3 +162,78 @@ def test_journal_store_is_independent_of_task_store(tmp_path):
 
     assert [t.title for t in task_store.load()] == ["a task"]
     assert [e.body for e in journal_store.load()] == ["an entry"]
+
+
+def test_habit_streak_defaults_to_zero():
+    assert Habit(name="exercise", frequency="daily").streak == 0
+
+
+def test_habit_from_dict_defaults_streak_when_missing():
+    habit = Habit.from_dict({"name": "exercise", "frequency": "daily"})
+    assert habit.streak == 0
+
+
+def test_habit_from_dict_reads_streak():
+    habit = Habit.from_dict({"name": "exercise", "frequency": "daily", "streak": 7})
+    assert habit.streak == 7
+
+
+def test_habit_last_checked_defaults_to_none():
+    assert Habit(name="exercise", frequency="daily").last_checked is None
+
+
+def test_habit_from_dict_defaults_last_checked_when_missing():
+    habit = Habit.from_dict({"name": "exercise", "frequency": "daily"})
+    assert habit.last_checked is None
+
+
+def test_habit_from_dict_reads_last_checked():
+    habit = Habit.from_dict(
+        {"name": "exercise", "frequency": "daily", "last_checked": "2026-09-30"}
+    )
+    assert habit.last_checked == "2026-09-30"
+
+
+def test_habit_has_created_at_timestamp():
+    assert Habit(name="exercise", frequency="daily").created_at
+
+
+def test_habit_from_dict_defaults_created_at_when_missing():
+    habit = Habit.from_dict({"name": "exercise", "frequency": "daily"})
+    assert habit.created_at == ""
+
+
+def test_habit_store_load_empty_when_no_file(tmp_path):
+    store = HabitStore(data_dir=tmp_path)
+    assert store.load() == []
+
+
+def test_habit_store_save_and_load_round_trip(tmp_path):
+    store = HabitStore(data_dir=tmp_path)
+    habits = [
+        Habit(name="exercise", frequency="daily", streak=3, last_checked="2026-09-30"),
+        Habit(name="review inbox", frequency="weekly"),
+    ]
+    store.save(habits)
+
+    loaded = store.load()
+
+    assert [h.name for h in loaded] == ["exercise", "review inbox"]
+    assert loaded[0].frequency == "daily"
+    assert loaded[0].streak == 3
+    assert loaded[0].last_checked == "2026-09-30"
+    assert loaded[1].frequency == "weekly"
+    assert loaded[1].streak == 0
+
+
+def test_habit_store_is_independent_of_other_stores(tmp_path):
+    task_store = TaskStore(data_dir=tmp_path)
+    journal_store = JournalStore(data_dir=tmp_path)
+    habit_store = HabitStore(data_dir=tmp_path)
+    task_store.save([Task(id=1, title="a task")])
+    journal_store.save([Entry(id=1, body="an entry")])
+    habit_store.save([Habit(name="exercise", frequency="daily")])
+
+    assert [t.title for t in task_store.load()] == ["a task"]
+    assert [e.body for e in journal_store.load()] == ["an entry"]
+    assert [h.name for h in habit_store.load()] == ["exercise"]

@@ -68,7 +68,7 @@ new batch of items in this same format, and start on the first one.
 
 ## Phase 5 — Habits & daily review
 
-- [ ] 41. `Habit` model (name, frequency, streak) + `HabitStore`
+- [x] 41. `Habit` model (name, frequency, streak) + `HabitStore`
 - [ ] 42. `onepact habit add <name> --daily|--weekly`
 - [ ] 43. `onepact habit check <name>` — mark today's occurrence done
 - [ ] 44. `onepact habit list` — shows current streak per habit
