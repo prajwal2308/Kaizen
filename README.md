@@ -133,6 +133,7 @@ Everything onepact stores lives under `~/.onepact/`:
 | `onepact.db`             | Tasks, if `backend` is `sqlite` (the default)             |
 | `tasks.json`              | Tasks, if `backend` is `json`                             |
 | `journal.json`            | Journal entries — always JSON, regardless of `backend`    |
+| `habits.json`              | Habits — always JSON, regardless of `backend`            |
 | `config.toml`              | Settings written by `config set` (or edited by hand)     |
 | `backups/`                 | Timestamped snapshots made before `rm`/`migrate` write    |
 | `.undo.json`                | Pointer used by `undo`; managed automatically             |
@@ -225,6 +226,23 @@ substring search across entry bodies, most recent match first.
 
 Entries are stored as JSON in `~/.onepact/journal.json`, separate from
 `tasks.json`.
+
+## Habits
+
+```bash
+onepact habit add "exercise" --daily
+onepact habit add "review inbox" --weekly
+```
+
+`habit add <name>` creates a new habit to track, with exactly one of
+`--daily`/`--weekly` saying how often you intend to check in on it — more
+habit commands (checking one off, listing current streaks) are coming in
+later releases. A name can only be added once; adding it again errors
+out rather than creating a second habit with the same name, since name
+is how every habit command refers to one.
+
+Habits are stored as JSON in `~/.onepact/habits.json`, separate from
+tasks and journal entries.
 
 ## Development
 

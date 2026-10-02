@@ -9,7 +9,7 @@ import pytest
 from onepact.cli import _read_entry_from_editor, main
 from onepact.config import load_config, set_config_value
 from onepact.sqlite_storage import SqliteTaskStore
-from onepact.storage import JournalStore, Task, TaskStore
+from onepact.storage import HabitStore, JournalStore, Task, TaskStore
 
 
 @pytest.fixture(autouse=True)
@@ -32,6 +32,7 @@ def _isolated_store(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "onepact.cli.SqliteTaskStore", lambda: SqliteTaskStore(data_dir=tmp_path)
     )
+    monkeypatch.setattr("onepact.cli.HabitStore", lambda: HabitStore(data_dir=tmp_path))
 
 
 def test_add_and_list(capsys):
@@ -1571,6 +1572,58 @@ def test_journal_rm_eof_on_prompt_aborts(monkeypatch, tmp_path):
     assert main(["journal", "rm", "1"]) == 1
     entries = JournalStore(data_dir=tmp_path).load()
     assert len(entries) == 1
+
+
+def test_habit_add_daily(capsys, tmp_path):
+    assert main(["habit", "add", "exercise", "--daily"]) == 0
+    out = capsys.readouterr().out
+    assert "Added habit 'exercise' (daily)" in out
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+    assert habits[0].name == "exercise"
+    assert habits[0].frequency == "daily"
+    assert habits[0].streak == 0
+    assert habits[0].last_checked is None
+
+
+def test_habit_add_weekly(tmp_path):
+    assert main(["habit", "add", "review inbox", "--weekly"]) == 0
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].frequency == "weekly"
+
+
+def test_habit_add_rejects_duplicate_name(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "add", "exercise", "--weekly"]) == 1
+    err = capsys.readouterr().err
+    assert "'exercise' already exists" in err
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+    assert habits[0].frequency == "daily"
+
+
+def test_habit_add_requires_a_frequency_flag():
+    with pytest.raises(SystemExit):
+        main(["habit", "add", "exercise"])
+
+
+def test_habit_add_rejects_both_frequency_flags():
+    with pytest.raises(SystemExit):
+        main(["habit", "add", "exercise", "--daily", "--weekly"])
+
+
+def test_habit_add_is_independent_of_tasks_and_journal(tmp_path):
+    main(["add", "a task"])
+    main(["journal", "an entry"])
+    main(["habit", "add", "exercise", "--daily"])
+
+    assert [t.title for t in TaskStore(data_dir=tmp_path).load()] == ["a task"]
+    assert [e.body for e in JournalStore(data_dir=tmp_path).load()] == ["an entry"]
+    assert [h.name for h in HabitStore(data_dir=tmp_path).load()] == ["exercise"]
 
 
 def test_list_output_has_no_ansi_codes_by_default(capsys):

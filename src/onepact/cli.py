@@ -20,6 +20,8 @@ from onepact.storage import (
     PRIORITIES,
     REPEATS,
     Entry,
+    Habit,
+    HabitStore,
     JournalStore,
     Task,
     TaskStore,
@@ -354,6 +356,19 @@ def cmd_journal_rm(store: JournalStore, args: argparse.Namespace) -> int:
     remaining = [e for e in entries if e.id != args.id]
     store.save(remaining)
     print(f"Removed #{args.id}")
+    return 0
+
+
+def cmd_habit_add(store: HabitStore, args: argparse.Namespace) -> int:
+    habits = store.load()
+    if any(h.name == args.name for h in habits):
+        print(f"Habit {args.name!r} already exists", file=sys.stderr)
+        return 1
+    frequency = "daily" if args.daily else "weekly"
+    habit = Habit(name=args.name, frequency=frequency)
+    habits.append(habit)
+    store.save(habits)
+    print(f"Added habit {args.name!r} ({frequency})")
     return 0
 
 
@@ -730,6 +745,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_journal_rm.set_defaults(func=cmd_journal_rm, store_type="journal")
 
+    p_habit = sub.add_parser("habit", help="Manage habits")
+    habit_sub = p_habit.add_subparsers(dest="habit_command", required=True)
+
+    p_habit_add = habit_sub.add_parser("add", help="Add a new habit")
+    p_habit_add.add_argument("name", help="Habit name")
+    habit_freq = p_habit_add.add_mutually_exclusive_group(required=True)
+    habit_freq.add_argument(
+        "--daily", action="store_true", help="Check in on this habit daily"
+    )
+    habit_freq.add_argument(
+        "--weekly", action="store_true", help="Check in on this habit weekly"
+    )
+    p_habit_add.set_defaults(func=cmd_habit_add, store_type="habit")
+
     return parser
 
 
@@ -750,6 +779,8 @@ def main(argv: list[str] | None = None) -> int:
     store_type = getattr(args, "store_type", "task")
     if store_type == "journal":
         store = JournalStore()
+    elif store_type == "habit":
+        store = HabitStore()
     elif store_type == "json":
         store = TaskStore()
     elif store_type == "none":
