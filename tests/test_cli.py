@@ -1626,6 +1626,68 @@ def test_habit_add_is_independent_of_tasks_and_journal(tmp_path):
     assert [h.name for h in HabitStore(data_dir=tmp_path).load()] == ["exercise"]
 
 
+def test_habit_check_increments_streak_from_zero(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    assert main(["habit", "check", "exercise"]) == 0
+    out = capsys.readouterr().out
+    assert "Checked in 'exercise': streak is now 1" in out
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].streak == 1
+    assert habits[0].last_checked == today
+
+
+def test_habit_check_twice_in_one_day_does_not_double_increment(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    assert main(["habit", "check", "exercise"]) == 0
+    out = capsys.readouterr().out
+    assert "already checked in today" in out
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].streak == 1
+
+
+def test_habit_check_on_a_later_day_increments_again(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    store = HabitStore(data_dir=tmp_path)
+    habits = store.load()
+    habits[0].streak = 3
+    habits[0].last_checked = "2026-01-01"
+    store.save(habits)
+
+    today = datetime.now(timezone.utc).date().isoformat()
+    assert main(["habit", "check", "exercise"]) == 0
+
+    habits = store.load()
+    assert habits[0].streak == 4
+    assert habits[0].last_checked == today
+
+
+def test_habit_check_unknown_name_errors(capsys):
+    assert main(["habit", "check", "nonexistent"]) == 1
+    err = capsys.readouterr().err
+    assert "No habit named 'nonexistent'" in err
+
+
+def test_habit_check_does_not_disturb_other_habits(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "review inbox", "--weekly"])
+
+    main(["habit", "check", "exercise"])
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    by_name = {h.name: h for h in habits}
+    assert by_name["exercise"].streak == 1
+    assert by_name["review inbox"].streak == 0
+    assert by_name["review inbox"].last_checked is None
+
+
 def test_list_output_has_no_ansi_codes_by_default(capsys):
     main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
     capsys.readouterr()

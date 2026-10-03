@@ -70,7 +70,7 @@ new batch of items in this same format, and start on the first one.
 
 - [x] 41. `Habit` model (name, frequency, streak) + `HabitStore`
 - [x] 42. `onepact habit add <name> --daily|--weekly`
-- [ ] 43. `onepact habit check <name>` — mark today's occurrence done
+- [x] 43. `onepact habit check <name>` — mark today's occurrence done
 - [ ] 44. `onepact habit list` — shows current streak per habit
 - [ ] 45. Streak-breaking logic: missed day resets streak, tested with fixed clock
 - [ ] 46. `onepact review` — a single daily-review view: overdue tasks, today's habits, last journal entry

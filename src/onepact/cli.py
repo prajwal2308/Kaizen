@@ -372,6 +372,23 @@ def cmd_habit_add(store: HabitStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_habit_check(store: HabitStore, args: argparse.Namespace) -> int:
+    habits = store.load()
+    habit = next((h for h in habits if h.name == args.name), None)
+    if habit is None:
+        print(f"No habit named {args.name!r}", file=sys.stderr)
+        return 1
+    today = datetime.now(timezone.utc).date().isoformat()
+    if habit.last_checked == today:
+        print(f"Habit {args.name!r} already checked in today.")
+        return 0
+    habit.streak += 1
+    habit.last_checked = today
+    store.save(habits)
+    print(f"Checked in {args.name!r}: streak is now {habit.streak}")
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -758,6 +775,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--weekly", action="store_true", help="Check in on this habit weekly"
     )
     p_habit_add.set_defaults(func=cmd_habit_add, store_type="habit")
+
+    p_habit_check = habit_sub.add_parser(
+        "check", help="Mark today's occurrence of a habit done"
+    )
+    p_habit_check.add_argument("name", help="Habit name")
+    p_habit_check.set_defaults(func=cmd_habit_check, store_type="habit")
 
     return parser
 
