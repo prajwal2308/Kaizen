@@ -233,20 +233,23 @@ Entries are stored as JSON in `~/.onepact/journal.json`, separate from
 onepact habit add "exercise" --daily
 onepact habit add "review inbox" --weekly
 onepact habit check "exercise"
+onepact habit list
 ```
 
 `habit add <name>` creates a new habit to track, with exactly one of
-`--daily`/`--weekly` saying how often you intend to check in on it —
-listing current streaks is coming in a later release. A name can only
-be added once; adding it again errors out rather than creating a second
-habit with the same name, since name is how every habit command refers
-to one.
+`--daily`/`--weekly` saying how often you intend to check in on it. A
+name can only be added once; adding it again errors out rather than
+creating a second habit with the same name, since name is how every
+habit command refers to one.
 
 `habit check <name>` marks today's occurrence of a habit done,
 increasing its streak by one; checking the same habit again later the
 same day doesn't count it twice. This is the straightforward version —
 it doesn't yet reset the streak if you've gone too long without
-checking in, which is coming in a later release too.
+checking in, which is coming in a later release.
+
+`habit list` shows every habit's name, frequency, and current streak,
+flagging whichever ones you've already checked in on today.
 
 Habits are stored as JSON in `~/.onepact/habits.json`, separate from
 tasks and journal entries.

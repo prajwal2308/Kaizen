@@ -1688,6 +1688,49 @@ def test_habit_check_does_not_disturb_other_habits(tmp_path):
     assert by_name["review inbox"].last_checked is None
 
 
+def test_habit_list_empty(capsys):
+    assert main(["habit", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "No habits." in out
+
+
+def test_habit_list_shows_name_frequency_and_streak(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "review inbox", "--weekly"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    assert main(["habit", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "exercise [daily] streak: 1" in out
+    assert "review inbox [weekly] streak: 0" in out
+
+
+def test_habit_list_flags_a_habit_checked_in_today(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "review inbox", "--weekly"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    main(["habit", "list"])
+    out = capsys.readouterr().out
+    assert "exercise [daily] streak: 1 (checked in today)" in out
+    assert "review inbox [weekly] streak: 0" in out
+    assert "review inbox [weekly] streak: 0 (checked in today)" not in out
+
+
+def test_habit_list_output_is_colorized_when_forced_on(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli.should_color", lambda: True)
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    main(["habit", "list"])
+    out = capsys.readouterr().out
+    assert "\033[35mstreak: 1\033[0m" in out
+    assert "\033[32m (checked in today)\033[0m" in out
+
+
 def test_list_output_has_no_ansi_codes_by_default(capsys):
     main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
     capsys.readouterr()

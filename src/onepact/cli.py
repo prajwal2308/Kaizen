@@ -389,6 +389,26 @@ def cmd_habit_check(store: HabitStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def _format_habit_line(h: Habit, today: str, color: bool = False) -> str:
+    streak = colorize(f"streak: {h.streak}", "magenta", enabled=color)
+    line = f"{h.name} [{h.frequency}] {streak}"
+    if h.last_checked == today:
+        line += colorize(" (checked in today)", "green", enabled=color)
+    return line
+
+
+def cmd_habit_list(store: HabitStore, args: argparse.Namespace) -> int:
+    habits = store.load()
+    if not habits:
+        print("No habits.")
+        return 0
+    today = datetime.now(timezone.utc).date().isoformat()
+    color = should_color()
+    for h in habits:
+        print(_format_habit_line(h, today, color))
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -781,6 +801,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_habit_check.add_argument("name", help="Habit name")
     p_habit_check.set_defaults(func=cmd_habit_check, store_type="habit")
+
+    p_habit_list = habit_sub.add_parser(
+        "list", help="List habits and their current streaks"
+    )
+    p_habit_list.set_defaults(func=cmd_habit_list, store_type="habit")
 
     return parser
 
