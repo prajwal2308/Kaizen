@@ -2,7 +2,7 @@ import csv
 import io
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -1653,20 +1653,71 @@ def test_habit_check_twice_in_one_day_does_not_double_increment(capsys, tmp_path
     assert habits[0].streak == 1
 
 
-def test_habit_check_on_a_later_day_increments_again(tmp_path):
+def test_habit_check_continues_streak_within_daily_grace_period(monkeypatch, tmp_path):
     main(["habit", "add", "exercise", "--daily"])
     store = HabitStore(data_dir=tmp_path)
     habits = store.load()
     habits[0].streak = 3
-    habits[0].last_checked = "2026-01-01"
+    habits[0].last_checked = "2026-01-09"
     store.save(habits)
 
-    today = datetime.now(timezone.utc).date().isoformat()
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
     assert main(["habit", "check", "exercise"]) == 0
 
     habits = store.load()
     assert habits[0].streak == 4
-    assert habits[0].last_checked == today
+    assert habits[0].last_checked == "2026-01-10"
+
+
+def test_habit_check_resets_streak_after_a_missed_daily_checkin(capsys, monkeypatch, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    store = HabitStore(data_dir=tmp_path)
+    habits = store.load()
+    habits[0].streak = 3
+    habits[0].last_checked = "2026-01-08"
+    store.save(habits)
+    capsys.readouterr()
+
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    assert main(["habit", "check", "exercise"]) == 0
+    out = capsys.readouterr().out
+    assert "streak reset to 1 (missed a check-in)" in out
+
+    habits = store.load()
+    assert habits[0].streak == 1
+    assert habits[0].last_checked == "2026-01-10"
+
+
+def test_habit_check_continues_streak_within_weekly_grace_period(monkeypatch, tmp_path):
+    main(["habit", "add", "review inbox", "--weekly"])
+    store = HabitStore(data_dir=tmp_path)
+    habits = store.load()
+    habits[0].streak = 2
+    habits[0].last_checked = "2026-01-03"
+    store.save(habits)
+
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    assert main(["habit", "check", "review inbox"]) == 0
+
+    habits = store.load()
+    assert habits[0].streak == 3
+    assert habits[0].last_checked == "2026-01-10"
+
+
+def test_habit_check_resets_streak_after_a_missed_weekly_checkin(monkeypatch, tmp_path):
+    main(["habit", "add", "review inbox", "--weekly"])
+    store = HabitStore(data_dir=tmp_path)
+    habits = store.load()
+    habits[0].streak = 2
+    habits[0].last_checked = "2026-01-02"
+    store.save(habits)
+
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    assert main(["habit", "check", "review inbox"]) == 0
+
+    habits = store.load()
+    assert habits[0].streak == 1
+    assert habits[0].last_checked == "2026-01-10"
 
 
 def test_habit_check_unknown_name_errors(capsys):

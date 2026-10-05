@@ -244,9 +244,10 @@ habit command refers to one.
 
 `habit check <name>` marks today's occurrence of a habit done,
 increasing its streak by one; checking the same habit again later the
-same day doesn't count it twice. This is the straightforward version —
-it doesn't yet reset the streak if you've gone too long without
-checking in, which is coming in a later release.
+same day doesn't count it twice. If too much time has passed since the
+last check-in — more than a day for a `--daily` habit, more than a
+week for `--weekly` — the streak resets to 1 instead of continuing,
+since the streak was already broken.
 
 `habit list` shows every habit's name, frequency, and current streak,
 flagging whichever ones you've already checked in on today.

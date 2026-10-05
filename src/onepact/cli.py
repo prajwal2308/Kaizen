@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from onepact.color import colorize, should_color
@@ -372,20 +372,37 @@ def cmd_habit_add(store: HabitStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def _today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+_STREAK_GRACE_DAYS = {"daily": 1, "weekly": 7}
+
+
 def cmd_habit_check(store: HabitStore, args: argparse.Namespace) -> int:
     habits = store.load()
     habit = next((h for h in habits if h.name == args.name), None)
     if habit is None:
         print(f"No habit named {args.name!r}", file=sys.stderr)
         return 1
-    today = datetime.now(timezone.utc).date().isoformat()
-    if habit.last_checked == today:
+    today = _today()
+    today_str = today.isoformat()
+    if habit.last_checked == today_str:
         print(f"Habit {args.name!r} already checked in today.")
         return 0
+    missed = False
+    if habit.last_checked is not None:
+        gap_days = (today - date.fromisoformat(habit.last_checked)).days
+        if gap_days > _STREAK_GRACE_DAYS[habit.frequency]:
+            habit.streak = 0
+            missed = True
     habit.streak += 1
-    habit.last_checked = today
+    habit.last_checked = today_str
     store.save(habits)
-    print(f"Checked in {args.name!r}: streak is now {habit.streak}")
+    if missed:
+        print(f"Checked in {args.name!r}: streak reset to 1 (missed a check-in)")
+    else:
+        print(f"Checked in {args.name!r}: streak is now {habit.streak}")
     return 0
 
 
@@ -402,7 +419,7 @@ def cmd_habit_list(store: HabitStore, args: argparse.Namespace) -> int:
     if not habits:
         print("No habits.")
         return 0
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = _today().isoformat()
     color = should_color()
     for h in habits:
         print(_format_habit_line(h, today, color))
