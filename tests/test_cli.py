@@ -1782,6 +1782,64 @@ def test_habit_list_output_is_colorized_when_forced_on(monkeypatch, capsys):
     assert "\033[32m (checked in today)\033[0m" in out
 
 
+def test_review_shows_empty_states_for_everything(capsys):
+    assert main(["review"]) == 0
+    out = capsys.readouterr().out
+    assert "Overdue tasks:" in out
+    assert "No overdue tasks." in out
+    assert "Today's habits:" in out
+    assert "No habits." in out
+    assert "Last journal entry:" in out
+    assert "No journal entries." in out
+
+
+def test_review_shows_only_overdue_undone_tasks(capsys):
+    main(["add", "overdue high", "--due", "2020-01-01", "--priority", "high"])
+    main(["add", "not due yet", "--due", "2099-01-01"])
+    main(["add", "overdue but done", "--due", "2020-01-01"])
+    main(["done", "3"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert "overdue high" in out
+    assert "not due yet" not in out
+    assert "overdue but done" not in out
+
+
+def test_review_sorts_overdue_tasks_by_priority(capsys):
+    main(["add", "low one", "--due", "2020-01-01", "--priority", "low"])
+    main(["add", "high one", "--due", "2020-01-01", "--priority", "high"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert out.index("high one") < out.index("low one")
+
+
+def test_review_shows_all_habits_with_todays_check_in_status(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "review inbox", "--weekly"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert "exercise [daily] streak: 1 (checked in today)" in out
+    assert "review inbox [weekly] streak: 0" in out
+
+
+def test_review_shows_only_the_most_recent_journal_entry(capsys):
+    main(["journal", "first entry"])
+    main(["journal", "second entry, most recent"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert "second entry, most recent" in out
+    assert "first entry" not in out
+
+
 def test_list_output_has_no_ansi_codes_by_default(capsys):
     main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
     capsys.readouterr()

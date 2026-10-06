@@ -255,6 +255,19 @@ flagging whichever ones you've already checked in on today.
 Habits are stored as JSON in `~/.onepact/habits.json`, separate from
 tasks and journal entries.
 
+## Daily review
+
+```bash
+onepact review
+```
+
+One view for the start of your day: your overdue, unfinished tasks
+(sorted the same way `list` sorts them), every habit with its current
+streak and whether you've checked in on it today, and your single most
+recent journal entry. Each section prints its own message when it has
+nothing to show, so `review` always has the same shape whether you're
+just getting started or have months of data.
+
 ## Development
 
 ```bash

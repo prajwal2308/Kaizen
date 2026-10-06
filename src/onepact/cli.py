@@ -426,6 +426,42 @@ def cmd_habit_list(store: HabitStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_review(_store: None, args: argparse.Namespace) -> int:
+    today = _today().isoformat()
+    color = should_color()
+
+    tasks = _get_task_store().load()
+    overdue = sorted(
+        (t for t in tasks if is_overdue(t, today)),
+        key=lambda t: (priority_rank(t.priority), t.id),
+    )
+    print("Overdue tasks:")
+    if overdue:
+        for t in overdue:
+            print(f"  {_format_task_line(t, today, color)}")
+    else:
+        print("  No overdue tasks.")
+
+    habits = HabitStore().load()
+    print()
+    print("Today's habits:")
+    if habits:
+        for h in habits:
+            print(f"  {_format_habit_line(h, today, color)}")
+    else:
+        print("  No habits.")
+
+    entries = JournalStore().load()
+    print()
+    print("Last journal entry:")
+    if entries:
+        print(f"  {_format_entry_line(entries[-1], color)}")
+    else:
+        print("  No journal entries.")
+
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -685,6 +721,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_show = sub.add_parser("show", help="Show full details for a task")
     p_show.add_argument("id", type=int, help="Task id")
     p_show.set_defaults(func=cmd_show)
+
+    p_review = sub.add_parser(
+        "review",
+        help="Daily-review view: overdue tasks, today's habits, last journal entry",
+    )
+    p_review.set_defaults(func=cmd_review, store_type="none")
 
     p_done = sub.add_parser("done", help="Mark a task done")
     p_done.add_argument("id", type=int, help="Task id")
