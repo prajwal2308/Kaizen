@@ -1840,6 +1840,52 @@ def test_review_shows_only_the_most_recent_journal_entry(capsys):
     assert "first entry" not in out
 
 
+def test_review_since_yesterday_shows_entries_from_today_and_yesterday(
+    capsys, monkeypatch, tmp_path
+):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["journal", "too old"])
+    main(["journal", "from yesterday"])
+    main(["journal", "from today"])
+    store = JournalStore(data_dir=tmp_path)
+    entries = store.load()
+    entries[0].created_at = "2026-01-08T00:00:00+00:00"
+    entries[1].created_at = "2026-01-09T12:00:00+00:00"
+    entries[2].created_at = "2026-01-10T06:00:00+00:00"
+    store.save(entries)
+    capsys.readouterr()
+
+    main(["review", "--since", "yesterday"])
+    out = capsys.readouterr().out
+    assert "Entries since yesterday:" in out
+    assert "from yesterday" in out
+    assert "from today" in out
+    assert "too old" not in out
+
+
+def test_review_since_yesterday_shows_most_recent_first(capsys, monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["journal", "earlier today"])
+    main(["journal", "later today"])
+    capsys.readouterr()
+
+    main(["review", "--since", "yesterday"])
+    out = capsys.readouterr().out
+    assert out.index("later today") < out.index("earlier today")
+
+
+def test_review_since_yesterday_empty_state(capsys):
+    assert main(["review", "--since", "yesterday"]) == 0
+    out = capsys.readouterr().out
+    assert "Entries since yesterday:" in out
+    assert "No journal entries since yesterday." in out
+
+
+def test_review_since_rejects_invalid_value():
+    with pytest.raises(SystemExit):
+        main(["review", "--since", "lastweek"])
+
+
 def test_list_output_has_no_ansi_codes_by_default(capsys):
     main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
     capsys.readouterr()

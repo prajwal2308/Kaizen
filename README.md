@@ -259,6 +259,7 @@ tasks and journal entries.
 
 ```bash
 onepact review
+onepact review --since yesterday
 ```
 
 One view for the start of your day: your overdue, unfinished tasks
@@ -267,6 +268,12 @@ streak and whether you've checked in on it today, and your single most
 recent journal entry. Each section prints its own message when it has
 nothing to show, so `review` always has the same shape whether you're
 just getting started or have months of data.
+
+`--since yesterday` is for catching up after a day away: it broadens
+the journal section from just the single most recent entry to every
+entry from yesterday or today, most recent first. The overdue-tasks
+and habits sections don't change — overdue tasks and today's streaks
+already show everything relevant regardless of how long it's been.
 
 ## Development
 

@@ -453,11 +453,21 @@ def cmd_review(_store: None, args: argparse.Namespace) -> int:
 
     entries = JournalStore().load()
     print()
-    print("Last journal entry:")
-    if entries:
-        print(f"  {_format_entry_line(entries[-1], color)}")
+    if args.since == "yesterday":
+        cutoff = (_today() - timedelta(days=1)).isoformat()
+        recent = [e for e in entries if e.created_at[:10] >= cutoff]
+        print("Entries since yesterday:")
+        if recent:
+            for e in reversed(recent):
+                print(f"  {_format_entry_line(e, color)}")
+        else:
+            print("  No journal entries since yesterday.")
     else:
-        print("  No journal entries.")
+        print("Last journal entry:")
+        if entries:
+            print(f"  {_format_entry_line(entries[-1], color)}")
+        else:
+            print("  No journal entries.")
 
     return 0
 
@@ -725,6 +735,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_review = sub.add_parser(
         "review",
         help="Daily-review view: overdue tasks, today's habits, last journal entry",
+    )
+    p_review.add_argument(
+        "--since",
+        choices=("yesterday",),
+        default=None,
+        help="Broaden the journal section to every entry since yesterday, for catching up",
     )
     p_review.set_defaults(func=cmd_review, store_type="none")
 
