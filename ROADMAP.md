@@ -75,7 +75,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 45. Streak-breaking logic: missed day resets streak, tested with fixed clock
 - [x] 46. `onepact review` — a single daily-review view: overdue tasks, today's habits, last journal entry
 - [x] 47. `onepact review --since yesterday` for a quick catch-up view
-- [ ] 48. Stats: `onepact stats` — tasks completed this week, current streaks, journal cadence
+- [x] 48. Stats: `onepact stats` — tasks completed this week, current streaks, journal cadence
 - [ ] 49. Tests for habits and review/stats commands
 - [ ] 50. README section documenting habits + daily review workflow
 

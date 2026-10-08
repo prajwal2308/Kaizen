@@ -472,6 +472,32 @@ def cmd_review(_store: None, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stats(_store: None, args: argparse.Namespace) -> int:
+    week_start = (_today() - timedelta(days=6)).isoformat()
+
+    tasks = _get_task_store().load()
+    completed_this_week = sum(
+        1 for t in tasks if t.done and t.done_at and t.done_at[:10] >= week_start
+    )
+    print(f"Tasks completed this week: {completed_this_week}")
+
+    habits = HabitStore().load()
+    print()
+    print("Current streaks:")
+    if habits:
+        for h in habits:
+            print(f"  {h.name}: {h.streak}")
+    else:
+        print("  No habits.")
+
+    entries = JournalStore().load()
+    recent_entries = sum(1 for e in entries if e.created_at[:10] >= week_start)
+    print()
+    print(f"Journal entries in the last 7 days: {recent_entries}")
+
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -743,6 +769,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Broaden the journal section to every entry since yesterday, for catching up",
     )
     p_review.set_defaults(func=cmd_review, store_type="none")
+
+    p_stats = sub.add_parser(
+        "stats",
+        help="Tasks completed this week, current streaks, journal cadence",
+    )
+    p_stats.set_defaults(func=cmd_stats, store_type="none")
 
     p_done = sub.add_parser("done", help="Mark a task done")
     p_done.add_argument("id", type=int, help="Task id")

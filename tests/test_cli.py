@@ -1886,6 +1886,61 @@ def test_review_since_rejects_invalid_value():
         main(["review", "--since", "lastweek"])
 
 
+def test_stats_empty_state(capsys):
+    assert main(["stats"]) == 0
+    out = capsys.readouterr().out
+    assert "Tasks completed this week: 0" in out
+    assert "No habits." in out
+    assert "Journal entries in the last 7 days: 0" in out
+
+
+def test_stats_counts_tasks_completed_within_the_week(capsys, monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "done 6 days ago"])
+    main(["add", "done 7 days ago"])
+    main(["add", "not done"])
+    store = TaskStore(data_dir=tmp_path)
+    tasks = store.load()
+    tasks[0].done = True
+    tasks[0].done_at = "2026-01-04T00:00:00+00:00"
+    tasks[1].done = True
+    tasks[1].done_at = "2026-01-03T00:00:00+00:00"
+    store.save(tasks)
+    capsys.readouterr()
+
+    main(["stats"])
+    out = capsys.readouterr().out
+    assert "Tasks completed this week: 1" in out
+
+
+def test_stats_shows_current_streaks_for_each_habit(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "review inbox", "--weekly"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    main(["stats"])
+    out = capsys.readouterr().out
+    assert "exercise: 1" in out
+    assert "review inbox: 0" in out
+
+
+def test_stats_counts_journal_entries_within_the_last_7_days(capsys, monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["journal", "within window"])
+    main(["journal", "outside window"])
+    store = JournalStore(data_dir=tmp_path)
+    entries = store.load()
+    entries[0].created_at = "2026-01-04T00:00:00+00:00"
+    entries[1].created_at = "2026-01-03T00:00:00+00:00"
+    store.save(entries)
+    capsys.readouterr()
+
+    main(["stats"])
+    out = capsys.readouterr().out
+    assert "Journal entries in the last 7 days: 1" in out
+
+
 def test_list_output_has_no_ansi_codes_by_default(capsys):
     main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
     capsys.readouterr()

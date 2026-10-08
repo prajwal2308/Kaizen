@@ -275,6 +275,18 @@ entry from yesterday or today, most recent first. The overdue-tasks
 and habits sections don't change — overdue tasks and today's streaks
 already show everything relevant regardless of how long it's been.
 
+## Stats
+
+```bash
+onepact stats
+```
+
+Three numbers at a glance: how many tasks you've completed in the last
+7 days, every habit's current streak, and how many journal entries
+you've written in the last 7 days. "Last 7 days" is a rolling window
+ending today (not the calendar week), the same style `review --since
+yesterday` already uses.
+
 ## Development
 
 ```bash
