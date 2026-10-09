@@ -164,6 +164,16 @@ def test_journal_store_is_independent_of_task_store(tmp_path):
     assert [e.body for e in journal_store.load()] == ["an entry"]
 
 
+def test_habit_from_dict_defaults_frequency_when_missing():
+    habit = Habit.from_dict({"name": "exercise"})
+    assert habit.frequency == "daily"
+
+
+def test_habit_from_dict_reads_frequency():
+    habit = Habit.from_dict({"name": "review inbox", "frequency": "weekly"})
+    assert habit.frequency == "weekly"
+
+
 def test_habit_streak_defaults_to_zero():
     assert Habit(name="exercise", frequency="daily").streak == 0
 

@@ -1807,6 +1807,41 @@ def test_review_shows_only_overdue_undone_tasks(capsys):
     assert "overdue but done" not in out
 
 
+def test_review_excludes_a_task_with_no_due_date(capsys):
+    main(["add", "no due date at all"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert "no due date at all" not in out
+    assert "No overdue tasks." in out
+
+
+def test_review_output_is_colorized_when_forced_on(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli.should_color", lambda: True)
+    main(["add", "colorful overdue task", "--due", "2020-01-01", "--priority", "high"])
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert "\033[31m(high)\033[0m" in out
+    assert "\033[31;1m OVERDUE\033[0m" in out
+    assert "\033[35mstreak: 1\033[0m" in out
+    assert "\033[32m (checked in today)\033[0m" in out
+
+
+def test_review_reads_overdue_tasks_from_active_backend(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["add", "overdue in sqlite", "--due", "2020-01-01"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    assert "overdue in sqlite" in out
+
+
 def test_review_sorts_overdue_tasks_by_priority(capsys):
     main(["add", "low one", "--due", "2020-01-01", "--priority", "low"])
     main(["add", "high one", "--due", "2020-01-01", "--priority", "high"])
@@ -1939,6 +1974,17 @@ def test_stats_counts_journal_entries_within_the_last_7_days(capsys, monkeypatch
     main(["stats"])
     out = capsys.readouterr().out
     assert "Journal entries in the last 7 days: 1" in out
+
+
+def test_stats_counts_completed_tasks_from_active_backend(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    main(["add", "done in sqlite"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    main(["stats"])
+    out = capsys.readouterr().out
+    assert "Tasks completed this week: 1" in out
 
 
 def test_list_output_has_no_ansi_codes_by_default(capsys):
