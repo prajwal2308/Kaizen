@@ -77,7 +77,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 47. `onepact review --since yesterday` for a quick catch-up view
 - [x] 48. Stats: `onepact stats` — tasks completed this week, current streaks, journal cadence
 - [x] 49. Tests for habits and review/stats commands
-- [ ] 50. README section documenting habits + daily review workflow
+- [x] 50. README section documenting habits + daily review workflow
 
 ## Phase 6 — Polish & release
 

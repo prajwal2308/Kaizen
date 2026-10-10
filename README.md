@@ -287,6 +287,43 @@ you've written in the last 7 days. "Last 7 days" is a rolling window
 ending today (not the calendar week), the same style `review --since
 yesterday` already uses.
 
+## Daily habits & review workflow
+
+Habits, journaling, and daily review are meant to be used together,
+day after day:
+
+```bash
+# once, when you start tracking a habit
+onepact habit add "exercise" --daily
+onepact habit add "weekly planning" --weekly
+
+# each morning
+onepact review
+
+# through the day, as you do things
+onepact habit check "exercise"
+onepact journal "felt good about the standup today"
+
+# after a day (or more) away from onepact
+onepact review --since yesterday
+
+# every so often, to see how it's going
+onepact stats
+```
+
+`review` is the thing to run first: it surfaces anything overdue,
+shows every habit's streak so you know what still needs a check-in
+today, and reminds you what you last journaled. Check habits off and
+journal as you go through the day — neither depends on the other
+having happened first. If a day or more slips by without opening
+onepact, `review --since yesterday` catches you up on everything you
+journaled instead of just the latest entry, and the next `habit check`
+will say plainly if a streak broke rather than quietly pretending it
+didn't. `stats` is for zooming out occasionally — a quick read on
+whether tasks are actually getting done, streaks are holding, and
+journaling is happening regularly, without re-reading everything by
+hand.
+
 ## Development
 
 ```bash
