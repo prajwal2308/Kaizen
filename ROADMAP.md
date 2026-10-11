@@ -81,7 +81,7 @@ new batch of items in this same format, and start on the first one.
 
 ## Phase 6 — Polish & release
 
-- [ ] 51. Consistent error handling: exit codes, no raw tracebacks on user errors
+- [x] 51. Consistent error handling: exit codes, no raw tracebacks on user errors
 - [ ] 52. `onepact --version`
 - [ ] 53. Shell completion script (bash/zsh) generation
 - [ ] 54. Man-page-style `--help` polish for every subcommand (examples in help text)

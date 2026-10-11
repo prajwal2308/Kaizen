@@ -2039,3 +2039,45 @@ def test_journal_list_output_is_colorized_when_forced_on(monkeypatch, capsys):
     main(["journal", "list"])
     out = capsys.readouterr().out
     assert "\033[36m [task #1]\033[0m" in out
+
+
+def test_export_to_an_unwritable_path_errors_cleanly_instead_of_crashing(capsys, tmp_path):
+    main(["add", "a task"])
+    capsys.readouterr()
+
+    bad_path = tmp_path / "no-such-directory" / "out.json"
+    assert main(["export", "--format", "json", "--output", str(bad_path)]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("Error: ")
+    assert "Traceback" not in err
+
+
+def test_corrupted_json_store_file_errors_cleanly_instead_of_crashing(capsys, tmp_path):
+    (tmp_path / "tasks.json").write_text("not valid json {{{")
+
+    assert main(["list"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("Error: ")
+    assert "Traceback" not in err
+
+
+def test_malformed_habit_date_errors_cleanly_instead_of_crashing(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    store = HabitStore(data_dir=tmp_path)
+    habits = store.load()
+    habits[0].last_checked = "not-a-date"
+    store.save(habits)
+    capsys.readouterr()
+
+    assert main(["habit", "check", "exercise"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("Error: ")
+    assert "Traceback" not in err
+
+
+def test_normal_commands_are_unaffected_by_the_error_handling_wrapper(capsys):
+    assert main(["add", "a plain task"]) == 0
+    capsys.readouterr()
+    assert main(["list"]) == 0
+    out = capsys.readouterr().out
+    assert "a plain task" in out

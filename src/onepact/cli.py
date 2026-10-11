@@ -6,6 +6,7 @@ import io
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -942,7 +943,11 @@ def main(argv: list[str] | None = None) -> int:
         store = None
     else:
         store = _get_task_store()
-    return args.func(store, args)
+    try:
+        return args.func(store, args)
+    except (OSError, ValueError, KeyError, sqlite3.Error) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
