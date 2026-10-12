@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 from datetime import date, datetime, timedelta, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from onepact.color import colorize, should_color
@@ -29,6 +31,13 @@ from onepact.storage import (
     is_overdue,
     priority_rank,
 )
+
+
+def _onepact_version() -> str:
+    try:
+        return _pkg_version("onepact")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def _parse_due(value: str) -> str:
@@ -698,6 +707,11 @@ def cmd_import(store: TaskStore, args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="onepact", description="A local-first task and journal CLI."
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"onepact {_onepact_version()}",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

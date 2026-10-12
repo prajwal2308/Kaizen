@@ -1,4 +1,5 @@
 import csv
+import importlib.metadata
 import io
 import json
 import os
@@ -6,6 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
+from onepact import cli
 from onepact.cli import _read_entry_from_editor, main
 from onepact.config import load_config, set_config_value
 from onepact.sqlite_storage import SqliteTaskStore
@@ -2081,3 +2083,19 @@ def test_normal_commands_are_unaffected_by_the_error_handling_wrapper(capsys):
     assert main(["list"]) == 0
     out = capsys.readouterr().out
     assert "a plain task" in out
+
+
+def test_version_flag_prints_version_and_exits_zero(capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--version"])
+    assert exc_info.value.code == 0
+    out = capsys.readouterr().out
+    assert out.strip() == f"onepact {importlib.metadata.version('onepact')}"
+
+
+def test_onepact_version_falls_back_when_package_metadata_is_missing(monkeypatch):
+    def raise_not_found(_name):
+        raise importlib.metadata.PackageNotFoundError
+
+    monkeypatch.setattr("onepact.cli._pkg_version", raise_not_found)
+    assert cli._onepact_version() == "unknown"

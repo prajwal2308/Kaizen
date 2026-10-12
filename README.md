@@ -21,6 +21,8 @@ cd onepact
 pip install -e .
 ```
 
+Check it installed with `onepact --version`.
+
 ## Usage
 
 ```bash
