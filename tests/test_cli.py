@@ -3,6 +3,8 @@ import importlib.metadata
 import io
 import json
 import os
+import shutil
+import subprocess
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
@@ -2099,3 +2101,64 @@ def test_onepact_version_falls_back_when_package_metadata_is_missing(monkeypatch
 
     monkeypatch.setattr("onepact.cli._pkg_version", raise_not_found)
     assert cli._onepact_version() == "unknown"
+
+
+def test_command_tree_reflects_real_commands():
+    tree = cli._command_tree()
+    assert "add" in tree
+    assert tree["add"] == []
+    assert tree["journal"] == sorted(["add", "list", "show", "search", "rm"])
+    assert tree["habit"] == sorted(["add", "check", "list"])
+    assert tree["config"] == sorted(["show", "set"])
+
+
+def test_completion_bash_contains_expected_structure(capsys):
+    assert main(["completion", "bash"]) == 0
+    out = capsys.readouterr().out
+    assert "complete -F _onepact_completions onepact" in out
+    assert "journal)" in out
+    assert "habit)" in out
+
+
+def test_completion_bash_script_is_valid_and_functional(capsys, tmp_path):
+    main(["completion", "bash"])
+    script = capsys.readouterr().out
+    script_path = tmp_path / "onepact_completion.bash"
+    script_path.write_text(script)
+
+    subprocess.run(["bash", "-n", str(script_path)], check=True)
+
+    harness = f'''
+source "{script_path}"
+COMP_WORDS=(onepact journal "")
+COMP_CWORD=2
+_onepact_completions
+echo "${{COMPREPLY[@]}}"
+'''
+    result = subprocess.run(
+        ["bash", "-c", harness], check=True, capture_output=True, text=True
+    )
+    assert result.stdout.split() == sorted(["add", "list", "show", "search", "rm"])
+
+
+def test_completion_zsh_contains_expected_structure(capsys):
+    assert main(["completion", "zsh"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("#compdef onepact")
+    assert "_values" in out
+    assert "habit)" in out
+
+
+def test_completion_zsh_script_has_valid_syntax(capsys, tmp_path):
+    main(["completion", "zsh"])
+    script = capsys.readouterr().out
+    script_path = tmp_path / "_onepact"
+    script_path.write_text(script)
+
+    if shutil.which("zsh"):
+        subprocess.run(["zsh", "-n", str(script_path)], check=True)
+
+
+def test_completion_rejects_invalid_shell():
+    with pytest.raises(SystemExit):
+        main(["completion", "fish"])

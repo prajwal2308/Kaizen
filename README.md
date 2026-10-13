@@ -326,6 +326,26 @@ whether tasks are actually getting done, streaks are holding, and
 journaling is happening regularly, without re-reading everything by
 hand.
 
+## Shell completion
+
+```bash
+# bash, for your current session
+source <(onepact completion bash)
+
+# bash, permanently (adjust the path for your system)
+onepact completion bash > /etc/bash_completion.d/onepact
+
+# zsh (somewhere on your $fpath, then restart your shell)
+onepact completion zsh > ~/.zsh/completions/_onepact
+```
+
+Tab-completes top-level commands (`onepact d<TAB>` → `done`) and, one
+level deeper, each command group's own subcommands (`onepact journal
+<TAB>` → `add list rm search show`; same for `habit` and `config`).
+It doesn't complete flag values. The script is generated from
+`onepact`'s actual command set each time you run `completion`, so it
+can't go stale the way a hand-copied one would as commands are added.
+
 ## Development
 
 ```bash

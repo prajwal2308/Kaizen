@@ -508,6 +508,88 @@ def cmd_stats(_store: None, args: argparse.Namespace) -> int:
     return 0
 
 
+def _subcommands_of(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
+    """Returns {name: subparser} for `parser`'s subparsers action, if it has
+    one. Relies on argparse's private `_SubParsersAction` (the same
+    introspection point tools like argcomplete use), since argparse has no
+    public API for walking a parser's command tree.
+    """
+    for action in parser._actions:  # noqa: SLF001
+        if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+            return dict(action.choices)
+    return {}
+
+
+def _command_tree() -> dict[str, list[str]]:
+    """Maps every top-level command to its own subcommands (empty for a
+    command with none), read directly from build_parser() so completion
+    scripts can't go stale as commands are added or renamed.
+    """
+    top = _subcommands_of(build_parser())
+    return {name: sorted(_subcommands_of(sub)) for name, sub in sorted(top.items())}
+
+
+def _bash_completion_script(tree: dict[str, list[str]]) -> str:
+    commands = " ".join(tree)
+    cases = "\n".join(
+        f'        {name})\n'
+        f'            COMPREPLY=($(compgen -W "{" ".join(subs)}" -- "$cur"))\n'
+        f"            ;;"
+        for name, subs in tree.items()
+        if subs
+    )
+    return f"""\
+_onepact_completions() {{
+    local cur
+    COMPREPLY=()
+    cur="${{COMP_WORDS[COMP_CWORD]}}"
+    if [ "$COMP_CWORD" -eq 1 ]; then
+        COMPREPLY=($(compgen -W "{commands}" -- "$cur"))
+        return 0
+    fi
+    case "${{COMP_WORDS[1]}}" in
+{cases}
+    esac
+}}
+complete -F _onepact_completions onepact
+"""
+
+
+def _zsh_completion_script(tree: dict[str, list[str]]) -> str:
+    commands = " ".join(tree)
+    cases = "\n".join(
+        f"        {name})\n"
+        f"            _values '{name} subcommand' {' '.join(subs)}\n"
+        f"            ;;"
+        for name, subs in tree.items()
+        if subs
+    )
+    return f"""\
+#compdef onepact
+
+_onepact() {{
+    if (( CURRENT == 2 )); then
+        _values 'onepact command' {commands}
+        return
+    fi
+    case ${{words[2]}} in
+{cases}
+    esac
+}}
+
+_onepact
+"""
+
+
+def cmd_completion(_store: None, args: argparse.Namespace) -> int:
+    tree = _command_tree()
+    if args.shell == "bash":
+        print(_bash_completion_script(tree), end="")
+    else:
+        print(_zsh_completion_script(tree), end="")
+    return 0
+
+
 def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     remaining = [t for t in tasks if t.id != args.id]
@@ -790,6 +872,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Tasks completed this week, current streaks, journal cadence",
     )
     p_stats.set_defaults(func=cmd_stats, store_type="none")
+
+    p_completion = sub.add_parser(
+        "completion", help="Print a shell completion script"
+    )
+    p_completion.add_argument(
+        "shell", choices=("bash", "zsh"), help="Shell to generate a completion script for"
+    )
+    p_completion.set_defaults(func=cmd_completion, store_type="none")
 
     p_done = sub.add_parser("done", help="Mark a task done")
     p_done.add_argument("id", type=int, help="Task id")
