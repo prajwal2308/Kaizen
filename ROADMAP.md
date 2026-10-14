@@ -84,7 +84,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 51. Consistent error handling: exit codes, no raw tracebacks on user errors
 - [x] 52. `onepact --version`
 - [x] 53. Shell completion script (bash/zsh) generation
-- [ ] 54. Man-page-style `--help` polish for every subcommand (examples in help text)
+- [x] 54. Man-page-style `--help` polish for every subcommand (examples in help text)
 - [ ] 55. Type-check with `mypy` (or `pyright`) added to CI
 - [ ] 56. Packaging: verify `pip install .` works in a clean venv from a tagged release
 - [ ] 57. `CONTRIBUTING.md` with dev setup, test, and lint instructions

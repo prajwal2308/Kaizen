@@ -40,6 +40,15 @@ def _onepact_version() -> str:
         return "unknown"
 
 
+def _examples(*commands: str) -> str:
+    """Formats a man-page-style "Examples:" block for a subparser's
+    `epilog`. Pair with `formatter_class=argparse.RawDescriptionHelpFormatter`
+    so argparse doesn't rewrap or collapse the indentation.
+    """
+    lines = "\n".join(f"  {c}" for c in commands)
+    return f"Examples:\n{lines}"
+
+
 def _parse_due(value: str) -> str:
     try:
         datetime.strptime(value, "%Y-%m-%d")
@@ -797,7 +806,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_add = sub.add_parser("add", help="Add a new task")
+    p_add = sub.add_parser(
+        "add",
+        help="Add a new task",
+        epilog=_examples(
+            'onepact add "write the weekly review"',
+            'onepact add "renew passport" --priority high',
+            'onepact add "pay rent" --due 2026-09-01',
+            'onepact add "take out the trash" --repeat weekly',
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_add.add_argument("title", help="Task title")
     p_add.add_argument(
         "--priority",
@@ -826,7 +845,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_add.set_defaults(func=cmd_add)
 
-    p_list = sub.add_parser("list", help="List tasks")
+    p_list = sub.add_parser(
+        "list",
+        help="List tasks",
+        epilog=_examples(
+            "onepact list",
+            "onepact list --all",
+            "onepact list --tag home --priority high",
+            "onepact list --sort due",
+            "onepact list --overdue",
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
     p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
     p_list.add_argument(
@@ -846,18 +876,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_list.set_defaults(func=cmd_list)
 
-    p_find = sub.add_parser("find", help="Search task titles by substring")
+    p_find = sub.add_parser(
+        "find",
+        help="Search task titles by substring",
+        epilog=_examples("onepact find passport", "onepact find passport --all"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_find.add_argument("text", help="Substring to search for (case-insensitive)")
     p_find.add_argument("--all", action="store_true", help="Include completed tasks")
     p_find.set_defaults(func=cmd_find)
 
-    p_show = sub.add_parser("show", help="Show full details for a task")
+    p_show = sub.add_parser(
+        "show",
+        help="Show full details for a task",
+        epilog=_examples("onepact show 1"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_show.add_argument("id", type=int, help="Task id")
     p_show.set_defaults(func=cmd_show)
 
     p_review = sub.add_parser(
         "review",
         help="Daily-review view: overdue tasks, today's habits, last journal entry",
+        epilog=_examples("onepact review", "onepact review --since yesterday"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_review.add_argument(
         "--since",
@@ -870,48 +912,86 @@ def build_parser() -> argparse.ArgumentParser:
     p_stats = sub.add_parser(
         "stats",
         help="Tasks completed this week, current streaks, journal cadence",
+        epilog=_examples("onepact stats"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_stats.set_defaults(func=cmd_stats, store_type="none")
 
     p_completion = sub.add_parser(
-        "completion", help="Print a shell completion script"
+        "completion",
+        help="Print a shell completion script",
+        epilog=_examples("onepact completion bash", "onepact completion zsh"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_completion.add_argument(
         "shell", choices=("bash", "zsh"), help="Shell to generate a completion script for"
     )
     p_completion.set_defaults(func=cmd_completion, store_type="none")
 
-    p_done = sub.add_parser("done", help="Mark a task done")
+    p_done = sub.add_parser(
+        "done",
+        help="Mark a task done",
+        epilog=_examples("onepact done 1"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_done.add_argument("id", type=int, help="Task id")
     p_done.set_defaults(func=cmd_done)
 
-    p_edit = sub.add_parser("edit", help="Edit a task's title")
+    p_edit = sub.add_parser(
+        "edit",
+        help="Edit a task's title",
+        epilog=_examples('onepact edit 1 "write and send the weekly review"'),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_edit.add_argument("id", type=int, help="Task id")
     p_edit.add_argument("title", help="New task title")
     p_edit.set_defaults(func=cmd_edit)
 
-    p_rm = sub.add_parser("rm", help="Remove a task")
+    p_rm = sub.add_parser(
+        "rm",
+        help="Remove a task",
+        epilog=_examples("onepact rm 1"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_rm.add_argument("id", type=int, help="Task id")
     p_rm.set_defaults(func=cmd_rm)
 
     p_undo = sub.add_parser(
-        "undo", help="Revert the last destructive action (rm or migrate)"
+        "undo",
+        help="Revert the last destructive action (rm or migrate)",
+        epilog=_examples("onepact undo"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_undo.set_defaults(func=cmd_undo, store_type="none")
 
     p_config = sub.add_parser("config", help="View or change configuration")
     config_sub = p_config.add_subparsers(dest="config_command", required=True)
 
-    p_config_show = config_sub.add_parser("show", help="Show current configuration")
+    p_config_show = config_sub.add_parser(
+        "show",
+        help="Show current configuration",
+        epilog=_examples("onepact config show"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_config_show.set_defaults(func=cmd_config_show, store_type="none")
 
-    p_config_set = config_sub.add_parser("set", help="Set a configuration value")
+    p_config_set = config_sub.add_parser(
+        "set",
+        help="Set a configuration value",
+        epilog=_examples(
+            "onepact config set priority high", "onepact config set backend json"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_config_set.add_argument("key", help="Configuration key")
     p_config_set.add_argument("value", help="Configuration value")
     p_config_set.set_defaults(func=cmd_config_set, store_type="none")
 
     p_migrate = sub.add_parser(
-        "migrate", help="One-time migration between storage backends"
+        "migrate",
+        help="One-time migration between storage backends",
+        epilog=_examples("onepact migrate json-to-sqlite"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_migrate.add_argument(
         "direction",
@@ -920,7 +1000,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_migrate.set_defaults(func=cmd_migrate, store_type="json")
 
-    p_export = sub.add_parser("export", help="Export tasks as JSON or CSV")
+    p_export = sub.add_parser(
+        "export",
+        help="Export tasks as JSON or CSV",
+        epilog=_examples(
+            "onepact export --format json",
+            "onepact export --format csv --output tasks.csv",
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_export.add_argument(
         "--format",
         choices=("json", "csv"),
@@ -935,7 +1023,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_export.set_defaults(func=cmd_export)
 
-    p_import = sub.add_parser("import", help="Import tasks from a JSON or CSV export")
+    p_import = sub.add_parser(
+        "import",
+        help="Import tasks from a JSON or CSV export",
+        epilog=_examples("onepact import backup.json", "onepact import tasks.csv"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_import.add_argument("file", help="Path to a file produced by `export`")
     p_import.add_argument(
         "--format",
@@ -948,7 +1041,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)
 
-    p_journal_add = journal_sub.add_parser("add", help="Append a journal entry")
+    p_journal_add = journal_sub.add_parser(
+        "add",
+        help="Append a journal entry",
+        epilog=_examples(
+            'onepact journal "wrote the weekly review"',
+            'onepact journal "drafted the proposal" --task 1',
+            "onepact journal",
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_journal_add.add_argument(
         "text",
         nargs="?",
@@ -964,7 +1066,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_journal_add.set_defaults(func=cmd_journal, store_type="journal")
 
     p_journal_list = journal_sub.add_parser(
-        "list", help="List journal entries, most recent first"
+        "list",
+        help="List journal entries, most recent first",
+        epilog=_examples("onepact journal list", "onepact journal list --limit 5"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_journal_list.add_argument(
         "--limit",
@@ -974,17 +1079,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_journal_list.set_defaults(func=cmd_journal_list, store_type="journal")
 
-    p_journal_show = journal_sub.add_parser("show", help="Show a single journal entry")
+    p_journal_show = journal_sub.add_parser(
+        "show",
+        help="Show a single journal entry",
+        epilog=_examples("onepact journal show 1"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_journal_show.add_argument("id", type=int, help="Entry id")
     p_journal_show.set_defaults(func=cmd_journal_show, store_type="journal")
 
     p_journal_search = journal_sub.add_parser(
-        "search", help="Search journal entries by substring"
+        "search",
+        help="Search journal entries by substring",
+        epilog=_examples("onepact journal search proposal"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_journal_search.add_argument("text", help="Substring to search for (case-insensitive)")
     p_journal_search.set_defaults(func=cmd_journal_search, store_type="journal")
 
-    p_journal_rm = journal_sub.add_parser("rm", help="Remove a journal entry")
+    p_journal_rm = journal_sub.add_parser(
+        "rm",
+        help="Remove a journal entry",
+        epilog=_examples("onepact journal rm 1", "onepact journal rm 1 --yes"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_journal_rm.add_argument("id", type=int, help="Entry id")
     p_journal_rm.add_argument(
         "--yes",
@@ -997,7 +1115,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_habit = sub.add_parser("habit", help="Manage habits")
     habit_sub = p_habit.add_subparsers(dest="habit_command", required=True)
 
-    p_habit_add = habit_sub.add_parser("add", help="Add a new habit")
+    p_habit_add = habit_sub.add_parser(
+        "add",
+        help="Add a new habit",
+        epilog=_examples(
+            'onepact habit add "exercise" --daily',
+            'onepact habit add "review inbox" --weekly',
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p_habit_add.add_argument("name", help="Habit name")
     habit_freq = p_habit_add.add_mutually_exclusive_group(required=True)
     habit_freq.add_argument(
@@ -1009,13 +1135,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_habit_add.set_defaults(func=cmd_habit_add, store_type="habit")
 
     p_habit_check = habit_sub.add_parser(
-        "check", help="Mark today's occurrence of a habit done"
+        "check",
+        help="Mark today's occurrence of a habit done",
+        epilog=_examples('onepact habit check "exercise"'),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_habit_check.add_argument("name", help="Habit name")
     p_habit_check.set_defaults(func=cmd_habit_check, store_type="habit")
 
     p_habit_list = habit_sub.add_parser(
-        "list", help="List habits and their current streaks"
+        "list",
+        help="List habits and their current streaks",
+        epilog=_examples("onepact habit list"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_habit_list.set_defaults(func=cmd_habit_list, store_type="habit")
 

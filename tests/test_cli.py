@@ -2162,3 +2162,40 @@ def test_completion_zsh_script_has_valid_syntax(capsys, tmp_path):
 def test_completion_rejects_invalid_shell():
     with pytest.raises(SystemExit):
         main(["completion", "fish"])
+
+
+def _has_examples(subparser) -> bool:
+    epilog = subparser.epilog or ""
+    return epilog.startswith("Examples:") and "\n  onepact " in epilog
+
+
+def test_every_leaf_subcommand_has_examples_in_its_help():
+    parser = cli.build_parser()
+    top = cli._subcommands_of(parser)
+    missing = []
+    for name, subparser in top.items():
+        nested = cli._subcommands_of(subparser)
+        if nested:
+            for sub_name, sub_subparser in nested.items():
+                if not _has_examples(sub_subparser):
+                    missing.append(f"{name} {sub_name}")
+        elif not _has_examples(subparser):
+            missing.append(name)
+    assert missing == []
+
+
+def test_help_output_preserves_example_formatting(capsys):
+    with pytest.raises(SystemExit):
+        main(["add", "--help"])
+    out = capsys.readouterr().out
+    assert "Examples:" in out
+    assert '  onepact add "write the weekly review"' in out
+
+
+def test_subcommand_help_output_preserves_example_formatting(capsys):
+    with pytest.raises(SystemExit):
+        main(["journal", "rm", "--help"])
+    out = capsys.readouterr().out
+    assert "Examples:" in out
+    assert "  onepact journal rm 1" in out
+    assert "  onepact journal rm 1 --yes" in out
