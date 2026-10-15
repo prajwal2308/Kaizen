@@ -349,9 +349,10 @@ can't go stale the way a hand-copied one would as commands are added.
 ## Development
 
 ```bash
-pip install -e . pytest ruff
+pip install -e . pytest ruff mypy
 pytest -q
 ruff check src tests
+mypy
 ```
 
 ## Status

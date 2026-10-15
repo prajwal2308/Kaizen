@@ -1169,6 +1169,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     store_type = getattr(args, "store_type", "task")
+    store: TaskStore | SqliteTaskStore | JournalStore | HabitStore | None
     if store_type == "journal":
         store = JournalStore()
     elif store_type == "habit":

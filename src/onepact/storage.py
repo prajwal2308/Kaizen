@@ -62,7 +62,7 @@ def is_overdue(task: Task, today: str) -> bool:
 
     `today` is an ISO `YYYY-MM-DD` string; ISO dates compare correctly as strings.
     """
-    return bool(task.due) and not task.done and task.due < today
+    return task.due is not None and not task.done and task.due < today
 
 
 class TaskStore:
