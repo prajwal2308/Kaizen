@@ -7,6 +7,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 - Project renamed from `kaizen` to `onepact`: package, CLI command (`kaizen` → `onepact`), and default data directory (`~/.kaizen` → `~/.onepact`). No behavior change.
+- `pyproject.toml`'s `license` field switched from the deprecated `{ text = "MIT" }` TOML-table form to the plain SPDX string `"MIT"`. Found by actually verifying packaging end to end (building both an sdist and a wheel with `python -m build`, then installing each into its own clean venv and running `onepact add`/`list`/`habit add`/`journal`/`review`/`completion` for real): the table form built fine today but prints a setuptools deprecation warning that becomes a hard build failure by 2027-02-18, so it's worth fixing now rather than when it breaks. No tag exists yet to verify "from a tagged release" literally (that's item 59); this verifies the packaging as it stands today, which item 59's eventual `v1.0.0` tag will build from unchanged.
 
 ### Added
 - `kaizen edit <id> <new-title>` command to rename an existing task, with tests.
