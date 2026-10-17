@@ -355,6 +355,9 @@ ruff check src tests
 mypy
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the project structure and
+what to check before opening a change.
+
 ## Status
 
 Early days — see [ROADMAP.md](ROADMAP.md) for the current phase and what's
