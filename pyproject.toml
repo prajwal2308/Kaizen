@@ -35,3 +35,9 @@ files = ["src"]
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["src/onepact"]
+
+[tool.coverage.report]
+show_missing = true

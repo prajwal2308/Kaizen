@@ -11,12 +11,13 @@ before you open a change.
 ```bash
 git clone https://github.com/prajwal2308/onepact.git
 cd onepact
-pip install -e . pytest ruff mypy
+pip install -e . pytest pytest-cov ruff mypy
 ```
 
 That's the whole dependency list — onepact itself has zero runtime
 dependencies (see "Why no dependencies?" below), so `pip install -e .`
-is instant, and `pytest`/`ruff`/`mypy` are only needed for development.
+is instant, and `pytest`/`pytest-cov`/`ruff`/`mypy` are only needed for
+development.
 
 ## Before opening a change
 
@@ -32,6 +33,17 @@ All three need to pass. There's no separate "format" step — `ruff
 check` covers linting (including import order and a handful of
 `pyupgrade`-style modernizations; see `[tool.ruff.lint]` in
 `pyproject.toml` for the exact rule selection).
+
+CI also runs the suite against Python 3.10 through 3.13 and checks
+coverage with:
+
+```bash
+pytest -q --cov=onepact --cov-report=term-missing --cov-fail-under=90
+```
+
+That's not required locally before every change, but if you're adding
+a new code path, give it a look — new code without any test exercising
+it is the main way coverage actually drops.
 
 If you're adding or changing behavior, add tests for it in the matching
 `tests/test_*.py` file rather than a new file, unless you're introducing
