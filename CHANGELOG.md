@@ -5,6 +5,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+- In-progress item 59 (tag and publish `v1.0.0`): the version bump and the `[1.0.0]` section below are done, but pushing the annotated `v1.0.0` tag itself (`git push origin v1.0.0`) failed with an HTTP 403 from GitHub after a clean TLS handshake to the same host that had just accepted a normal branch push seconds earlier -- this session's push credentials appear to be scoped to branch refs only, not tag creation. No tag exists on the remote and no GitHub Release was created. Item 59 is left unchecked; whatever runs next should start by just retrying `git push origin v1.0.0` (the local tag, if still present, is already correctly attributed) before falling through to a new tag, and only create the GitHub Release once that push actually succeeds.
+
 ## [1.0.0] - 2026-10-22
 
 Everything below shipped incrementally, one roadmap item per commit, over
