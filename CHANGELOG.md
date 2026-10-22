@@ -5,6 +5,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-22
+
+Everything below shipped incrementally, one roadmap item per commit, over
+Phases 1-6 (see [ROADMAP.md](ROADMAP.md)). This is the first tagged
+release: a local-first CLI covering tasks, journaling, habits, daily
+review, SQLite storage with JSON back-compat, and the packaging/CI/docs
+polish to make it installable and maintainable by someone other than
+whoever wrote it.
+
 ### Changed
 - Project renamed from `kaizen` to `onepact`: package, CLI command (`kaizen` → `onepact`), and default data directory (`~/.kaizen` → `~/.onepact`). No behavior change.
 - `pyproject.toml`'s `license` field switched from the deprecated `{ text = "MIT" }` TOML-table form to the plain SPDX string `"MIT"`. Found by actually verifying packaging end to end (building both an sdist and a wheel with `python -m build`, then installing each into its own clean venv and running `onepact add`/`list`/`habit add`/`journal`/`review`/`completion` for real): the table form built fine today but prints a setuptools deprecation warning that becomes a hard build failure by 2027-02-18, so it's worth fixing now rather than when it breaks. No tag exists yet to verify "from a tagged release" literally (that's item 59); this verifies the packaging as it stands today, which item 59's eventual `v1.0.0` tag will build from unchanged.

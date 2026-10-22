@@ -89,7 +89,7 @@ new batch of items in this same format, and start on the first one.
 - [x] 56. Packaging: verify `pip install .` works in a clean venv from a tagged release
 - [x] 57. `CONTRIBUTING.md` with dev setup, test, and lint instructions
 - [x] 58. Expand CI matrix (3.10–3.13) and add a coverage report step
-- [ ] 59. Tag and publish `v1.0.0` (CHANGELOG entry, GitHub release notes)
+- [x] 59. Tag and publish `v1.0.0` (CHANGELOG entry, GitHub release notes)
 - [ ] 60. Post-1.0: revisit this roadmap, write Phase 7 based on real usage
 
 ---
