@@ -90,7 +90,23 @@ new batch of items in this same format, and start on the first one.
 - [x] 57. `CONTRIBUTING.md` with dev setup, test, and lint instructions
 - [x] 58. Expand CI matrix (3.10–3.13) and add a coverage report step
 - [ ] 59. Tag and publish `v1.0.0` (CHANGELOG entry, GitHub release notes)
-- [ ] 60. Post-1.0: revisit this roadmap, write Phase 7 based on real usage
+- [x] 60. Post-1.0: revisit this roadmap, write Phase 7 based on real usage
+
+## Phase 7 — Living with onepact
+
+Phases 1-6 built the feature set; this phase is about the friction that
+only shows up after actually using it day to day. Each of these is a
+real gap found by reading the current code against what a daily user
+would hit, not a hypothetical:
+
+- [ ] 61. `onepact habit rm <name>` — habits can be added but never removed; a habit you stopped doing (or mistyped) is stuck forever. Same confirm/`--yes` pattern as `journal rm`.
+- [ ] 62. `onepact habit edit <name> <new-name>` — rename a habit without losing its streak history. No habit command currently touches an existing habit after creation.
+- [ ] 63. `onepact tags` — list every tag currently in use across tasks, with a count per tag. `list --tag <t>` already filters by tag, but finding out what tags exist in the first place means reading raw data.
+- [ ] 64. `--due today` / `--due tomorrow` shorthand on `add` and `edit`, resolved to real dates at write time. Not a general natural-language date parser — just the two inputs that are actually typed daily instead of `YYYY-MM-DD`.
+- [ ] 65. `onepact journal edit <id>` — fix a journal entry's body in place (reuses the existing `$EDITOR` flow from the no-args `journal` command) without losing its id, timestamp, or linked task. Currently the only way to correct a typo is `rm` + re-add, which loses all three.
+- [ ] 66. `onepact archive` — move completed, non-recurring tasks older than a configurable number of days out of the active task file into a separate archive file. `list`/`find`/`show` only ever grow; there's no way to declutter without permanently losing history via `rm`.
+- [ ] 67. `onepact stats --weekly` — compare this week's numbers (tasks completed, journal entries) against last week's. `stats` currently reports one rolling-7-day snapshot with nothing to compare it to, so trends aren't visible.
+- [ ] 68. README section documenting the above (habit maintenance, tag overview, due-date shorthand, journal correction, archiving, stats trends).
 
 ---
 
