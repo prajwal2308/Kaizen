@@ -1786,6 +1786,93 @@ def test_habit_list_output_is_colorized_when_forced_on(monkeypatch, capsys):
     assert "\033[32m (checked in today)\033[0m" in out
 
 
+def test_habit_rm_with_yes_flag_skips_prompt(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "rm", "exercise", "--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "Removed habit 'exercise'" in out
+    assert HabitStore(data_dir=tmp_path).load() == []
+
+
+def test_habit_rm_short_yes_flag(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+
+    assert main(["habit", "rm", "exercise", "-y"]) == 0
+    assert HabitStore(data_dir=tmp_path).load() == []
+
+
+def test_habit_rm_confirmed_removes_habit(monkeypatch, capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+    monkeypatch.setattr("builtins.input", lambda prompt="": "y")
+
+    assert main(["habit", "rm", "exercise"]) == 0
+    out = capsys.readouterr().out
+    assert "Removed habit 'exercise'" in out
+    assert HabitStore(data_dir=tmp_path).load() == []
+
+
+def test_habit_rm_declined_keeps_habit(monkeypatch, capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+    monkeypatch.setattr("builtins.input", lambda prompt="": "n")
+
+    assert main(["habit", "rm", "exercise"]) == 1
+    out = capsys.readouterr().out
+    assert "Aborted." in out
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+    assert habits[0].name == "exercise"
+
+
+def test_habit_rm_prompt_includes_name_and_streak(monkeypatch, capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+    captured_prompt = {}
+
+    def fake_input(prompt=""):
+        captured_prompt["value"] = prompt
+        return "n"
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    main(["habit", "rm", "exercise"])
+
+    assert "exercise" in captured_prompt["value"]
+    assert "streak: 1" in captured_prompt["value"]
+
+
+def test_habit_rm_unknown_name_errors(capsys):
+    assert main(["habit", "rm", "nonexistent"]) == 1
+    err = capsys.readouterr().err
+    assert "No habit named 'nonexistent'" in err
+
+
+def test_habit_rm_eof_on_prompt_aborts(monkeypatch, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+
+    def raise_eof(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", raise_eof)
+
+    assert main(["habit", "rm", "exercise"]) == 1
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+
+
+def test_habit_rm_does_not_disturb_other_habits(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "read", "--weekly"])
+
+    assert main(["habit", "rm", "exercise", "--yes"]) == 0
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+    assert habits[0].name == "read"
+
+
 def test_review_shows_empty_states_for_everything(capsys):
     assert main(["review"]) == 0
     out = capsys.readouterr().out
@@ -2108,7 +2195,7 @@ def test_command_tree_reflects_real_commands():
     assert "add" in tree
     assert tree["add"] == []
     assert tree["journal"] == sorted(["add", "list", "show", "search", "rm"])
-    assert tree["habit"] == sorted(["add", "check", "list"])
+    assert tree["habit"] == sorted(["add", "check", "list", "rm"])
     assert tree["config"] == sorted(["show", "set"])
 
 

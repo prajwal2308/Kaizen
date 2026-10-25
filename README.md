@@ -236,6 +236,7 @@ onepact habit add "exercise" --daily
 onepact habit add "review inbox" --weekly
 onepact habit check "exercise"
 onepact habit list
+onepact habit rm "exercise"
 ```
 
 `habit add <name>` creates a new habit to track, with exactly one of
@@ -253,6 +254,9 @@ since the streak was already broken.
 
 `habit list` shows every habit's name, frequency, and current streak,
 flagging whichever ones you've already checked in on today.
+
+`habit rm <name>` removes a habit (and its streak) after asking you to
+confirm; `--yes`/`-y` skips the prompt.
 
 Habits are stored as JSON in `~/.onepact/habits.json`, separate from
 tasks and journal entries.

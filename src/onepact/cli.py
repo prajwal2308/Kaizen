@@ -445,6 +445,22 @@ def cmd_habit_list(store: HabitStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_habit_rm(store: HabitStore, args: argparse.Namespace) -> int:
+    habits = store.load()
+    habit = next((h for h in habits if h.name == args.name), None)
+    if habit is None:
+        print(f"No habit named {args.name!r}", file=sys.stderr)
+        return 1
+    if not args.yes:
+        if not _confirm(f"Remove habit {habit.name!r} (streak: {habit.streak})?"):
+            print("Aborted.")
+            return 1
+    remaining = [h for h in habits if h.name != args.name]
+    store.save(remaining)
+    print(f"Removed habit {args.name!r}")
+    return 0
+
+
 def cmd_review(_store: None, args: argparse.Namespace) -> int:
     today = _today().isoformat()
     color = should_color()
@@ -1150,6 +1166,21 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_habit_list.set_defaults(func=cmd_habit_list, store_type="habit")
+
+    p_habit_rm = habit_sub.add_parser(
+        "rm",
+        help="Remove a habit",
+        epilog=_examples('onepact habit rm "exercise"', 'onepact habit rm "exercise" --yes'),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_habit_rm.add_argument("name", help="Habit name")
+    p_habit_rm.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirmation prompt",
+    )
+    p_habit_rm.set_defaults(func=cmd_habit_rm, store_type="habit")
 
     return parser
 
