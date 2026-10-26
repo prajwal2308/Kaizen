@@ -1630,6 +1630,70 @@ def test_habit_add_is_independent_of_tasks_and_journal(tmp_path):
     assert [h.name for h in HabitStore(data_dir=tmp_path).load()] == ["exercise"]
 
 
+def test_habit_edit_renames_habit(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "edit", "exercise", "workout"]) == 0
+    out = capsys.readouterr().out
+    assert "Renamed habit 'exercise' to 'workout'" in out
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+    assert habits[0].name == "workout"
+
+
+def test_habit_edit_preserves_streak_and_frequency(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2024, 1, 10))
+    main(["habit", "add", "exercise", "--weekly"])
+    main(["habit", "check", "exercise"])
+
+    assert main(["habit", "edit", "exercise", "workout"]) == 0
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].name == "workout"
+    assert habits[0].frequency == "weekly"
+    assert habits[0].streak == 1
+    assert habits[0].last_checked == "2024-01-10"
+
+
+def test_habit_edit_unknown_name_errors(capsys):
+    assert main(["habit", "edit", "nonexistent", "new"]) == 1
+    err = capsys.readouterr().err
+    assert "No habit named 'nonexistent'" in err
+
+
+def test_habit_edit_rejects_collision_with_existing_habit(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "read", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "edit", "exercise", "read"]) == 1
+    err = capsys.readouterr().err
+    assert "Habit 'read' already exists" in err
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert sorted(h.name for h in habits) == ["exercise", "read"]
+
+
+def test_habit_edit_to_same_name_is_a_no_op_success(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "edit", "exercise", "exercise"]) == 0
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert [h.name for h in habits] == ["exercise"]
+
+
+def test_habit_edit_does_not_disturb_other_habits(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "add", "read", "--weekly"])
+
+    assert main(["habit", "edit", "exercise", "workout"]) == 0
+    habits = {h.name for h in HabitStore(data_dir=tmp_path).load()}
+    assert habits == {"workout", "read"}
+
+
 def test_habit_check_increments_streak_from_zero(capsys, tmp_path):
     main(["habit", "add", "exercise", "--daily"])
     capsys.readouterr()
@@ -2195,7 +2259,7 @@ def test_command_tree_reflects_real_commands():
     assert "add" in tree
     assert tree["add"] == []
     assert tree["journal"] == sorted(["add", "list", "show", "search", "rm"])
-    assert tree["habit"] == sorted(["add", "check", "list", "rm"])
+    assert tree["habit"] == sorted(["add", "check", "edit", "list", "rm"])
     assert tree["config"] == sorted(["show", "set"])
 
 

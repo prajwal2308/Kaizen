@@ -235,8 +235,9 @@ Entries are stored as JSON in `~/.onepact/journal.json`, separate from
 onepact habit add "exercise" --daily
 onepact habit add "review inbox" --weekly
 onepact habit check "exercise"
+onepact habit edit "exercise" "workout"
 onepact habit list
-onepact habit rm "exercise"
+onepact habit rm "workout"
 ```
 
 `habit add <name>` creates a new habit to track, with exactly one of
@@ -251,6 +252,10 @@ same day doesn't count it twice. If too much time has passed since the
 last check-in — more than a day for a `--daily` habit, more than a
 week for `--weekly` — the streak resets to 1 instead of continuing,
 since the streak was already broken.
+
+`habit edit <name> <new-name>` renames a habit, keeping its frequency
+and streak exactly as they were -- only the name changes. Renaming to
+a name another habit already has errors out instead of merging them.
 
 `habit list` shows every habit's name, frequency, and current streak,
 flagging whichever ones you've already checked in on today.

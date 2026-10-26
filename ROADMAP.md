@@ -100,7 +100,7 @@ real gap found by reading the current code against what a daily user
 would hit, not a hypothetical:
 
 - [x] 61. `onepact habit rm <name>` — habits can be added but never removed; a habit you stopped doing (or mistyped) is stuck forever. Same confirm/`--yes` pattern as `journal rm`.
-- [ ] 62. `onepact habit edit <name> <new-name>` — rename a habit without losing its streak history. No habit command currently touches an existing habit after creation.
+- [x] 62. `onepact habit edit <name> <new-name>` — rename a habit without losing its streak history. No habit command currently touches an existing habit after creation.
 - [ ] 63. `onepact tags` — list every tag currently in use across tasks, with a count per tag. `list --tag <t>` already filters by tag, but finding out what tags exist in the first place means reading raw data.
 - [ ] 64. `--due today` / `--due tomorrow` shorthand on `add` and `edit`, resolved to real dates at write time. Not a general natural-language date parser — just the two inputs that are actually typed daily instead of `YYYY-MM-DD`.
 - [ ] 65. `onepact journal edit <id>` — fix a journal entry's body in place (reuses the existing `$EDITOR` flow from the no-args `journal` command) without losing its id, timestamp, or linked task. Currently the only way to correct a typo is `rm` + re-add, which loses all three.

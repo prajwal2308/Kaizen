@@ -391,6 +391,21 @@ def cmd_habit_add(store: HabitStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_habit_edit(store: HabitStore, args: argparse.Namespace) -> int:
+    habits = store.load()
+    habit = next((h for h in habits if h.name == args.name), None)
+    if habit is None:
+        print(f"No habit named {args.name!r}", file=sys.stderr)
+        return 1
+    if args.new_name != habit.name and any(h.name == args.new_name for h in habits):
+        print(f"Habit {args.new_name!r} already exists", file=sys.stderr)
+        return 1
+    habit.name = args.new_name
+    store.save(habits)
+    print(f"Renamed habit {args.name!r} to {args.new_name!r}")
+    return 0
+
+
 def _today() -> date:
     return datetime.now(timezone.utc).date()
 
@@ -1149,6 +1164,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--weekly", action="store_true", help="Check in on this habit weekly"
     )
     p_habit_add.set_defaults(func=cmd_habit_add, store_type="habit")
+
+    p_habit_edit = habit_sub.add_parser(
+        "edit",
+        help="Rename a habit",
+        epilog=_examples('onepact habit edit "exercise" "workout"'),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_habit_edit.add_argument("name", help="Current habit name")
+    p_habit_edit.add_argument("new_name", help="New habit name")
+    p_habit_edit.set_defaults(func=cmd_habit_edit, store_type="habit")
 
     p_habit_check = habit_sub.add_parser(
         "check",
