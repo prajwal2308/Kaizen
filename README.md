@@ -37,6 +37,7 @@ onepact list --priority high
 onepact list --tag home --priority high
 onepact list --sort due
 onepact list --overdue
+onepact tags
 onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
@@ -60,6 +61,11 @@ first.
 
 `list --overdue` is shorthand for showing only past-due, unfinished
 tasks — the same ones flagged `OVERDUE` in a regular `list`.
+
+`tags` lists every tag currently in use, alphabetically, each with a
+count of how many tasks carry it — useful for finding out what tags
+exist before filtering `list --tag <t>` with one. Like `list`/`find`,
+it excludes completed tasks unless you pass `--all`.
 
 `--repeat {daily,weekly}` on `add` marks a task as recurring, shown as
 `[repeat: daily]`/`[repeat: weekly]` in `list` and `find`, and as a

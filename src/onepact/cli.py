@@ -199,6 +199,22 @@ def cmd_find(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tags(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    if not args.all:
+        tasks = [t for t in tasks if not t.done]
+    counts: dict[str, int] = {}
+    for t in tasks:
+        for tag in t.tags:
+            counts[tag] = counts.get(tag, 0) + 1
+    if not counts:
+        print("No tags.")
+        return 0
+    for tag in sorted(counts):
+        print(f"{tag} ({counts[tag]})")
+    return 0
+
+
 def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     for t in tasks:
@@ -916,6 +932,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_find.add_argument("text", help="Substring to search for (case-insensitive)")
     p_find.add_argument("--all", action="store_true", help="Include completed tasks")
     p_find.set_defaults(func=cmd_find)
+
+    p_tags = sub.add_parser(
+        "tags",
+        help="List every tag in use across tasks, with a count per tag",
+        epilog=_examples("onepact tags", "onepact tags --all"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_tags.add_argument("--all", action="store_true", help="Include completed tasks")
+    p_tags.set_defaults(func=cmd_tags)
 
     p_show = sub.add_parser(
         "show",

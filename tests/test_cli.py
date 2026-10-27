@@ -1197,6 +1197,62 @@ def test_find_sorts_by_priority(capsys):
     assert out.index("docs high") < out.index("docs low")
 
 
+def test_tags_empty_store(capsys):
+    assert main(["tags"]) == 0
+    out = capsys.readouterr().out
+    assert "No tags." in out
+
+
+def test_tags_lists_each_tag_with_a_count(capsys):
+    main(["add", "task 1", "--tag", "work", "--tag", "urgent"])
+    main(["add", "task 2", "--tag", "work"])
+    capsys.readouterr()
+
+    assert main(["tags"]) == 0
+    out = capsys.readouterr().out
+    assert "work (2)" in out
+    assert "urgent (1)" in out
+
+
+def test_tags_sorted_alphabetically(capsys):
+    main(["add", "task 1", "--tag", "zebra"])
+    main(["add", "task 2", "--tag", "apple"])
+    capsys.readouterr()
+
+    main(["tags"])
+    out = capsys.readouterr().out
+    assert out.index("apple") < out.index("zebra")
+
+
+def test_tags_excludes_done_tasks_by_default(capsys):
+    main(["add", "task 1", "--tag", "home"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    assert main(["tags"]) == 0
+    out = capsys.readouterr().out
+    assert "No tags." in out
+
+
+def test_tags_all_includes_done_tasks(capsys):
+    main(["add", "task 1", "--tag", "home"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    assert main(["tags", "--all"]) == 0
+    out = capsys.readouterr().out
+    assert "home (1)" in out
+
+
+def test_tags_ignores_untagged_tasks(capsys):
+    main(["add", "task with no tags"])
+    capsys.readouterr()
+
+    assert main(["tags"]) == 0
+    out = capsys.readouterr().out
+    assert "No tags." in out
+
+
 def test_journal_appends_entry(capsys, tmp_path):
     assert main(["journal", "wrote some code today"]) == 0
     out = capsys.readouterr().out
