@@ -866,6 +866,22 @@ def test_add_invalid_due_date_errors():
         main(["add", "bad date", "--due", "not-a-date"])
 
 
+def test_add_due_today_resolves_to_real_date(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport", "--due", "today"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2026-01-10" in out
+
+
+def test_add_due_tomorrow_resolves_to_real_date(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport", "--due", "tomorrow"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2026-01-11" in out
+
+
 def test_add_with_tags_shown_in_list(capsys):
     main(["add", "clean garage", "--tag", "home", "--tag", "chores"])
     main(["list"])
@@ -991,6 +1007,54 @@ def test_edit_changes_title(capsys):
 
 def test_edit_unknown_id_errors():
     assert main(["edit", "999", "new title"]) == 1
+
+
+def test_edit_without_due_leaves_due_date_unchanged(capsys):
+    main(["add", "renew passport", "--due", "2099-01-01"])
+    capsys.readouterr()
+
+    main(["edit", "1", "renew passport urgently"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2099-01-01" in out
+
+
+def test_edit_due_sets_an_explicit_date(capsys):
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    main(["edit", "1", "renew passport", "--due", "2099-01-01"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2099-01-01" in out
+
+
+def test_edit_due_today_resolves_to_real_date(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    main(["edit", "1", "renew passport", "--due", "today"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2026-01-10" in out
+
+
+def test_edit_due_tomorrow_resolves_to_real_date(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    main(["edit", "1", "renew passport", "--due", "tomorrow"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2026-01-11" in out
+
+
+def test_edit_invalid_due_date_errors():
+    main(["add", "renew passport"])
+    with pytest.raises(SystemExit):
+        main(["edit", "1", "renew passport", "--due", "not-a-date"])
 
 
 def test_rm_removes_task(capsys):

@@ -49,12 +49,17 @@ def _examples(*commands: str) -> str:
     return f"Examples:\n{lines}"
 
 
+_DUE_SHORTHANDS = {"today": 0, "tomorrow": 1}
+
+
 def _parse_due(value: str) -> str:
+    if value in _DUE_SHORTHANDS:
+        return value
     try:
         datetime.strptime(value, "%Y-%m-%d")
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"invalid due date {value!r}, expected YYYY-MM-DD"
+            f"invalid due date {value!r}, expected YYYY-MM-DD, 'today', or 'tomorrow'"
         ) from None
     return value
 
@@ -128,7 +133,7 @@ def cmd_add(store: TaskStore, args: argparse.Namespace) -> int:
         id=store.next_id(tasks),
         title=args.title,
         priority=priority,
-        due=args.due,
+        due=_resolve_due(args.due),
         tags=tags,
         repeat=args.repeat,
     )
@@ -278,6 +283,8 @@ def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
     for t in tasks:
         if t.id == args.id:
             t.title = args.title
+            if args.due is not None:
+                t.due = _resolve_due(args.due)
             store.save(tasks)
             print(f"Edited #{t.id}: {t.title}")
             return 0
@@ -424,6 +431,19 @@ def cmd_habit_edit(store: HabitStore, args: argparse.Namespace) -> int:
 
 def _today() -> date:
     return datetime.now(timezone.utc).date()
+
+
+def _resolve_due(value: str | None) -> str | None:
+    """Resolves the `--due today`/`--due tomorrow` shorthand to a real
+    ISO date at the moment it's written, so a task added today with
+    `--due tomorrow` keeps that fixed date rather than re-evaluating
+    "tomorrow" relative to whenever it's later read. Anything else
+    (an explicit YYYY-MM-DD, or None) passes through unchanged -- this
+    is deliberately just the two shorthands, not a date parser.
+    """
+    if value in _DUE_SHORTHANDS:
+        return (_today() + timedelta(days=_DUE_SHORTHANDS[value])).isoformat()
+    return value
 
 
 _STREAK_GRACE_DAYS = {"daily": 1, "weekly": 7}
@@ -860,6 +880,7 @@ def build_parser() -> argparse.ArgumentParser:
             'onepact add "write the weekly review"',
             'onepact add "renew passport" --priority high',
             'onepact add "pay rent" --due 2026-09-01',
+            'onepact add "call the dentist" --due tomorrow',
             'onepact add "take out the trash" --repeat weekly',
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -875,7 +896,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--due",
         type=_parse_due,
         default=None,
-        help="Due date as YYYY-MM-DD",
+        help="Due date as YYYY-MM-DD, 'today', or 'tomorrow'",
     )
     p_add.add_argument(
         "--tag",
@@ -995,12 +1016,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_edit = sub.add_parser(
         "edit",
-        help="Edit a task's title",
-        epilog=_examples('onepact edit 1 "write and send the weekly review"'),
+        help="Edit a task's title and/or due date",
+        epilog=_examples(
+            'onepact edit 1 "write and send the weekly review"',
+            'onepact edit 1 "write the weekly review" --due tomorrow',
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_edit.add_argument("id", type=int, help="Task id")
     p_edit.add_argument("title", help="New task title")
+    p_edit.add_argument(
+        "--due",
+        type=_parse_due,
+        default=None,
+        help="New due date as YYYY-MM-DD, 'today', or 'tomorrow'",
+    )
     p_edit.set_defaults(func=cmd_edit)
 
     p_rm = sub.add_parser(

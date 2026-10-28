@@ -29,6 +29,7 @@ Check it installed with `onepact --version`.
 onepact add "write the weekly review"
 onepact add "renew passport" --priority high
 onepact add "pay rent" --due 2026-09-01
+onepact add "call the dentist" --due tomorrow
 onepact add "mow the lawn" --tag home --tag chores --priority high
 onepact add "take out the trash" --repeat weekly
 onepact list
@@ -41,6 +42,7 @@ onepact tags
 onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
+onepact edit 1 "write and send the weekly review" --due today
 onepact done 1
 onepact done 5
 onepact list --all
@@ -66,6 +68,11 @@ tasks — the same ones flagged `OVERDUE` in a regular `list`.
 count of how many tasks carry it — useful for finding out what tags
 exist before filtering `list --tag <t>` with one. Like `list`/`find`,
 it excludes completed tasks unless you pass `--all`.
+
+`--due` accepts `today` and `tomorrow` as shorthand for the actual
+date, on both `add` and `edit` — resolved to a real `YYYY-MM-DD` the
+moment the command runs, not re-evaluated later. `edit`'s `--due` is
+optional; leaving it out keeps the task's existing due date.
 
 `--repeat {daily,weekly}` on `add` marks a task as recurring, shown as
 `[repeat: daily]`/`[repeat: weekly]` in `list` and `find`, and as a
