@@ -1513,6 +1513,95 @@ def test_journal_show_displays_no_task_when_unlinked(capsys):
     assert "Task: (none)" in out
 
 
+def test_journal_edit_updates_body(monkeypatch, capsys, tmp_path):
+    main(["journal", "original entry"])
+    capsys.readouterr()
+    monkeypatch.setattr(
+        "onepact.cli._read_entry_from_editor", lambda initial="": "corrected entry\n"
+    )
+
+    assert main(["journal", "edit", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "Edited #1" in out
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].body == "corrected entry"
+
+
+def test_journal_edit_passes_existing_body_to_the_editor(monkeypatch, tmp_path):
+    main(["journal", "entry to fix"])
+    received = {}
+
+    def fake_read(initial=""):
+        received["initial"] = initial
+        return "fixed entry\n"
+
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", fake_read)
+    main(["journal", "edit", "1"])
+
+    assert received["initial"] == "entry to fix"
+
+
+def test_journal_edit_preserves_id_timestamp_and_task_link(monkeypatch, tmp_path):
+    main(["add", "linked task"])
+    main(["journal", "entry to fix", "--task", "1"])
+    before = JournalStore(data_dir=tmp_path).load()[0]
+
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "fixed entry\n")
+    main(["journal", "edit", "1"])
+
+    after = JournalStore(data_dir=tmp_path).load()[0]
+    assert after.id == before.id
+    assert after.created_at == before.created_at
+    assert after.task_id == before.task_id
+    assert after.body == "fixed entry"
+
+
+def test_journal_edit_unknown_id_errors(capsys):
+    assert main(["journal", "edit", "999"]) == 1
+    err = capsys.readouterr().err
+    assert "No journal entry with id 999" in err
+
+
+def test_journal_edit_empty_result_aborts(monkeypatch, capsys, tmp_path):
+    main(["journal", "entry to keep"])
+    capsys.readouterr()
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "   \n")
+
+    assert main(["journal", "edit", "1"]) == 1
+    err = capsys.readouterr().err
+    assert "Empty entry, nothing changed." in err
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].body == "entry to keep"
+
+
+def test_journal_edit_editor_failure_reported(monkeypatch, capsys):
+    main(["journal", "entry"])
+    capsys.readouterr()
+
+    def _boom(initial=""):
+        raise OSError("editor not found")
+
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", _boom)
+
+    assert main(["journal", "edit", "1"]) == 1
+    err = capsys.readouterr().err
+    assert "Could not open editor" in err
+
+
+def test_read_entry_from_editor_prepopulates_the_tempfile(tmp_path, monkeypatch):
+    script = tmp_path / "fake_editor.sh"
+    script.write_text(
+        '#!/bin/sh\nexisting=$(cat "$1")\necho "${existing} - appended" > "$1"\n'
+    )
+    script.chmod(0o755)
+    monkeypatch.setenv("EDITOR", str(script))
+    monkeypatch.delenv("VISUAL", raising=False)
+
+    assert _read_entry_from_editor("original content") == "original content - appended\n"
+
+
 def test_journal_search_finds_matching_entries(capsys):
     main(["journal", "wrote the onboarding docs"])
     main(["journal", "fixed a bug in the parser"])
@@ -2378,7 +2467,7 @@ def test_command_tree_reflects_real_commands():
     tree = cli._command_tree()
     assert "add" in tree
     assert tree["add"] == []
-    assert tree["journal"] == sorted(["add", "list", "show", "search", "rm"])
+    assert tree["journal"] == sorted(["add", "list", "show", "edit", "search", "rm"])
     assert tree["habit"] == sorted(["add", "check", "edit", "list", "rm"])
     assert tree["config"] == sorted(["show", "set"])
 
@@ -2409,7 +2498,7 @@ echo "${{COMPREPLY[@]}}"
     result = subprocess.run(
         ["bash", "-c", harness], check=True, capture_output=True, text=True
     )
-    assert result.stdout.split() == sorted(["add", "list", "show", "search", "rm"])
+    assert result.stdout.split() == sorted(["add", "list", "show", "edit", "search", "rm"])
 
 
 def test_completion_zsh_contains_expected_structure(capsys):

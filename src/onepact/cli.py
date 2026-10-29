@@ -292,10 +292,14 @@ def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
     return 1
 
 
-def _read_entry_from_editor() -> str:
+def _read_entry_from_editor(initial: str = "") -> str:
     editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "vi"
     fd, tmp_path = tempfile.mkstemp(suffix=".md", prefix="onepact-journal-")
-    os.close(fd)
+    if initial:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(initial)
+    else:
+        os.close(fd)
     try:
         subprocess.run([editor, tmp_path], check=True)
         with open(tmp_path, encoding="utf-8") as f:
@@ -374,6 +378,27 @@ def cmd_journal_show(store: JournalStore, args: argparse.Namespace) -> int:
             return 0
     print(f"No journal entry with id {args.id}", file=sys.stderr)
     return 1
+
+
+def cmd_journal_edit(store: JournalStore, args: argparse.Namespace) -> int:
+    entries = store.load()
+    entry = next((e for e in entries if e.id == args.id), None)
+    if entry is None:
+        print(f"No journal entry with id {args.id}", file=sys.stderr)
+        return 1
+    try:
+        body = _read_entry_from_editor(entry.body)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"Could not open editor: {exc}", file=sys.stderr)
+        return 1
+    body = body.strip()
+    if not body:
+        print("Empty entry, nothing changed.", file=sys.stderr)
+        return 1
+    entry.body = body
+    store.save(entries)
+    print(f"Edited #{entry.id}")
+    return 0
 
 
 def _confirm(prompt: str) -> bool:
@@ -1174,6 +1199,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_journal_show.add_argument("id", type=int, help="Entry id")
     p_journal_show.set_defaults(func=cmd_journal_show, store_type="journal")
 
+    p_journal_edit = journal_sub.add_parser(
+        "edit",
+        help="Edit a journal entry's body in $EDITOR",
+        epilog=_examples("onepact journal edit 1"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_journal_edit.add_argument("id", type=int, help="Entry id")
+    p_journal_edit.set_defaults(func=cmd_journal_edit, store_type="journal")
+
     p_journal_search = journal_sub.add_parser(
         "search",
         help="Search journal entries by substring",
@@ -1265,7 +1299,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-_JOURNAL_SUBCOMMANDS = {"add", "list", "show", "search", "rm"}
+_JOURNAL_SUBCOMMANDS = {"add", "list", "show", "edit", "search", "rm"}
 
 
 def main(argv: list[str] | None = None) -> int:
