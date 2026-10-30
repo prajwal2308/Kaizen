@@ -71,7 +71,7 @@ def _positive_int(value: str) -> int:
         n = None
     if n is None or n < 1:
         raise argparse.ArgumentTypeError(
-            f"invalid limit {value!r}, expected a positive integer"
+            f"invalid value {value!r}, expected a positive integer"
         )
     return n
 
@@ -759,6 +759,45 @@ def cmd_migrate(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+_ARCHIVE_FILE = "archive.json"
+_DEFAULT_ARCHIVE_DAYS = 30
+
+
+def cmd_archive(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    cutoff = (_today() - timedelta(days=args.days)).isoformat()
+    to_archive = [
+        t
+        for t in tasks
+        if t.done and not t.repeat and t.done_at is not None and t.done_at[:10] <= cutoff
+    ]
+    if not to_archive:
+        print("No tasks to archive.")
+        return 0
+
+    backup_path = _backup_file(store.path)
+
+    archive_path = store.data_dir / _ARCHIVE_FILE
+    archived: list[dict] = []
+    if archive_path.exists():
+        with archive_path.open("r", encoding="utf-8") as f:
+            archived = json.load(f)
+    archived.extend(t.to_dict() for t in to_archive)
+    store.data_dir.mkdir(parents=True, exist_ok=True)
+    with archive_path.open("w", encoding="utf-8") as f:
+        json.dump(archived, f, indent=2)
+
+    archived_ids = {t.id for t in to_archive}
+    remaining = [t for t in tasks if t.id not in archived_ids]
+    store.save(remaining)
+
+    print(f"Archived {len(to_archive)} task(s) to {archive_path}")
+    if backup_path is not None:
+        print(f"Backed up previous data to {backup_path}")
+        _record_undo(store.data_dir, store.path, backup_path)
+    return 0
+
+
 def cmd_undo(_store: None, args: argparse.Namespace) -> int:
     data_dir = TaskStore().data_dir
     log_path = data_dir / _UNDO_LOG_FILE
@@ -1110,6 +1149,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Migration direction",
     )
     p_migrate.set_defaults(func=cmd_migrate, store_type="json")
+
+    p_archive = sub.add_parser(
+        "archive",
+        help="Move old completed tasks out of the active task list",
+        epilog=_examples("onepact archive", "onepact archive --days 60"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_archive.add_argument(
+        "--days",
+        type=_positive_int,
+        default=_DEFAULT_ARCHIVE_DAYS,
+        help=(
+            "Archive completed tasks done at least this many days ago "
+            f"(default: {_DEFAULT_ARCHIVE_DAYS})"
+        ),
+    )
+    p_archive.set_defaults(func=cmd_archive)
 
     p_export = sub.add_parser(
         "export",

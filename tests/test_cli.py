@@ -1116,6 +1116,113 @@ def test_migrate_creates_no_backup_on_first_run(tmp_path):
     assert not (tmp_path / "backups").exists()
 
 
+def test_archive_moves_old_completed_tasks_to_archive_file(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+
+    assert main(["archive"]) == 0
+    out = capsys.readouterr().out
+    assert "Archived 1 task(s)" in out
+
+    assert TaskStore(data_dir=tmp_path).load() == []
+    archive_path = tmp_path / "archive.json"
+    archived = json.loads(archive_path.read_text())
+    assert len(archived) == 1
+    assert archived[0]["title"] == "old done task"
+
+
+def test_archive_excludes_recurring_tasks(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [
+            Task(
+                id=1,
+                title="recurring done task",
+                done=True,
+                done_at="2026-01-01T00:00:00+00:00",
+                repeat="weekly",
+            )
+        ]
+    )
+
+    main(["archive"])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["recurring done task"]
+    assert not (tmp_path / "archive.json").exists()
+
+
+def test_archive_excludes_tasks_not_old_enough(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="recently done", done=True, done_at="2026-01-25T00:00:00+00:00")]
+    )
+
+    main(["archive"])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["recently done"]
+
+
+def test_archive_excludes_undone_tasks(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save([Task(id=1, title="still pending")])
+
+    main(["archive"])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["still pending"]
+
+
+def test_archive_with_nothing_to_archive(capsys):
+    assert main(["archive"]) == 0
+    out = capsys.readouterr().out
+    assert "No tasks to archive." in out
+
+
+def test_archive_respects_custom_days_flag(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="done 10 days ago", done=True, done_at="2026-01-22T00:00:00+00:00")]
+    )
+
+    main(["archive", "--days", "5"])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks == []
+
+
+def test_archive_appends_across_multiple_runs(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="first batch", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=2, title="second batch", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    archived = json.loads((tmp_path / "archive.json").read_text())
+    assert [a["title"] for a in archived] == ["first batch", "second batch"]
+
+
+def test_archive_backs_up_active_store_before_overwrite(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+
+    main(["archive"])
+
+    backups = list((tmp_path / "backups").glob("tasks.json.*.bak"))
+    assert len(backups) == 1
+
+
+def test_archive_rejects_invalid_days():
+    with pytest.raises(SystemExit):
+        main(["archive", "--days", "0"])
+
+
 def test_undo_reverts_rm(capsys, tmp_path):
     main(["add", "task one"])
     main(["add", "task two"])

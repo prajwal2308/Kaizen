@@ -139,6 +139,26 @@ gets a fresh one from the active store, so importing never overwrites or
 collides with tasks you already have; run it against an empty store (or
 a fresh backend) if you want an exact restore, including ids.
 
+## Archiving
+
+```bash
+onepact archive
+onepact archive --days 60
+```
+
+`archive` moves completed, non-recurring tasks out of the active task
+list and into `~/.onepact/archive.json`, so `list`/`find`/`show` don't
+just grow forever but you don't lose the history either. Only tasks
+that are done, aren't recurring, and have been done for at least
+`--days` (default 30) qualify; a recurring task is never archived even
+once marked done, since that completed instance is the record of a
+past occurrence, not clutter. Running `archive` again later appends
+any newly-qualifying tasks to the same `archive.json` rather than
+overwriting it. Like `rm`/`migrate`, it backs up the active store first
+and `onepact undo` right after an `archive` brings those tasks back —
+though `archive.json` itself isn't trimmed back by `undo`, since the
+undo log only tracks one file at a time.
+
 ## Data & backups
 
 Everything onepact stores lives under `~/.onepact/`:
@@ -149,21 +169,23 @@ Everything onepact stores lives under `~/.onepact/`:
 | `tasks.json`              | Tasks, if `backend` is `json`                             |
 | `journal.json`            | Journal entries — always JSON, regardless of `backend`    |
 | `habits.json`              | Habits — always JSON, regardless of `backend`            |
+| `archive.json`              | Tasks moved out by `archive` — always JSON               |
 | `config.toml`              | Settings written by `config set` (or edited by hand)     |
-| `backups/`                 | Timestamped snapshots made before `rm`/`migrate` write    |
+| `backups/`                 | Timestamped snapshots made before `rm`/`migrate`/`archive` write |
 | `.undo.json`                | Pointer used by `undo`; managed automatically             |
 
 ```bash
 onepact undo
 ```
 
-`rm` and `migrate json-to-sqlite` copy the file they're about to
-overwrite into `~/.onepact/backups/` (timestamped) before writing, so a
-mistaken removal or migration always has a copy to recover from. Nothing
-is backed up the first time either command runs against a fresh data
-directory — there's nothing there yet to protect.
+`rm`, `migrate json-to-sqlite`, and `archive` copy the file they're
+about to overwrite into `~/.onepact/backups/` (timestamped) before
+writing, so a mistaken removal, migration, or archive run always has a
+copy to recover from. Nothing is backed up the first time any of these
+commands runs against a fresh data directory — there's nothing there
+yet to protect.
 
-`onepact undo` reverts the most recent `rm` or `migrate`, restoring
+`onepact undo` reverts the most recent `rm`, `migrate`, or `archive`, restoring
 whatever it backed up. It's a single-level undo: only the very last
 reversible action can be undone, so running `undo` twice in a row (with
 nothing destructive in between) reports "Nothing to undo" the second
