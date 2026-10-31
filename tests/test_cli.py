@@ -2458,6 +2458,65 @@ def test_stats_counts_completed_tasks_from_active_backend(capsys, tmp_path, monk
     assert "Tasks completed this week: 1" in out
 
 
+def test_stats_without_weekly_flag_shows_no_comparison(capsys, monkeypatch):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "a task"])
+    capsys.readouterr()
+
+    main(["stats"])
+    out = capsys.readouterr().out
+    assert "last week" not in out
+
+
+def test_stats_weekly_compares_tasks_completed_to_last_week(capsys, monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "done this week"])
+    main(["add", "done last week"])
+    main(["add", "done the week before"])
+    store = TaskStore(data_dir=tmp_path)
+    tasks = store.load()
+    tasks[0].done = True
+    tasks[0].done_at = "2026-01-04T00:00:00+00:00"
+    tasks[1].done = True
+    tasks[1].done_at = "2025-12-30T00:00:00+00:00"
+    tasks[2].done = True
+    tasks[2].done_at = "2025-12-20T00:00:00+00:00"
+    store.save(tasks)
+    capsys.readouterr()
+
+    main(["stats", "--weekly"])
+    out = capsys.readouterr().out
+    assert "Tasks completed this week: 1 (last week: 1)" in out
+
+
+def test_stats_weekly_compares_journal_entries_to_last_week(capsys, monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["journal", "this week"])
+    main(["journal", "last week"])
+    main(["journal", "the week before"])
+    store = JournalStore(data_dir=tmp_path)
+    entries = store.load()
+    entries[0].created_at = "2026-01-04T00:00:00+00:00"
+    entries[1].created_at = "2025-12-30T00:00:00+00:00"
+    entries[2].created_at = "2025-12-20T00:00:00+00:00"
+    store.save(entries)
+    capsys.readouterr()
+
+    main(["stats", "--weekly"])
+    out = capsys.readouterr().out
+    assert "Journal entries in the last 7 days: 1 (last week: 1)" in out
+
+
+def test_stats_weekly_with_nothing_last_week_shows_zero(capsys, monkeypatch):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    capsys.readouterr()
+
+    main(["stats", "--weekly"])
+    out = capsys.readouterr().out
+    assert "Tasks completed this week: 0 (last week: 0)" in out
+    assert "Journal entries in the last 7 days: 0 (last week: 0)" in out
+
+
 def test_list_output_has_no_ansi_codes_by_default(capsys):
     main(["add", "plain task", "--due", "2000-01-01", "--tag", "work"])
     capsys.readouterr()

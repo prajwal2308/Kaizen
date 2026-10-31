@@ -329,6 +329,7 @@ already show everything relevant regardless of how long it's been.
 
 ```bash
 onepact stats
+onepact stats --weekly
 ```
 
 Three numbers at a glance: how many tasks you've completed in the last
@@ -336,6 +337,13 @@ Three numbers at a glance: how many tasks you've completed in the last
 you've written in the last 7 days. "Last 7 days" is a rolling window
 ending today (not the calendar week), the same style `review --since
 yesterday` already uses.
+
+`--weekly` adds a `(last week: N)` comparison next to the tasks-completed
+and journal-entries numbers, using that same rolling-window style shifted
+back one week — useful for noticing whether you're trending up or down
+rather than just seeing one snapshot. Habit streaks aren't compared this
+way, since a streak is already a running count rather than a per-week
+number.
 
 ## Daily habits & review workflow
 

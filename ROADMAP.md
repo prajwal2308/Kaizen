@@ -105,7 +105,7 @@ would hit, not a hypothetical:
 - [x] 64. `--due today` / `--due tomorrow` shorthand on `add` and `edit`, resolved to real dates at write time. Not a general natural-language date parser — just the two inputs that are actually typed daily instead of `YYYY-MM-DD`.
 - [x] 65. `onepact journal edit <id>` — fix a journal entry's body in place (reuses the existing `$EDITOR` flow from the no-args `journal` command) without losing its id, timestamp, or linked task. Currently the only way to correct a typo is `rm` + re-add, which loses all three.
 - [x] 66. `onepact archive` — move completed, non-recurring tasks older than a configurable number of days out of the active task file into a separate archive file. `list`/`find`/`show` only ever grow; there's no way to declutter without permanently losing history via `rm`.
-- [ ] 67. `onepact stats --weekly` — compare this week's numbers (tasks completed, journal entries) against last week's. `stats` currently reports one rolling-7-day snapshot with nothing to compare it to, so trends aren't visible.
+- [x] 67. `onepact stats --weekly` — compare this week's numbers (tasks completed, journal entries) against last week's. `stats` currently reports one rolling-7-day snapshot with nothing to compare it to, so trends aren't visible.
 - [ ] 68. README section documenting the above (habit maintenance, tag overview, due-date shorthand, journal correction, archiving, stats trends).
 
 ## Phase 8 — Terminal UI

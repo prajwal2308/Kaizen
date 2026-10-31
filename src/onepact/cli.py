@@ -584,13 +584,24 @@ def cmd_review(_store: None, args: argparse.Namespace) -> int:
 
 
 def cmd_stats(_store: None, args: argparse.Namespace) -> int:
-    week_start = (_today() - timedelta(days=6)).isoformat()
+    today = _today()
+    week_start = (today - timedelta(days=6)).isoformat()
+    prev_week_start = (today - timedelta(days=13)).isoformat()
+    prev_week_end = (today - timedelta(days=7)).isoformat()
 
     tasks = _get_task_store().load()
     completed_this_week = sum(
         1 for t in tasks if t.done and t.done_at and t.done_at[:10] >= week_start
     )
-    print(f"Tasks completed this week: {completed_this_week}")
+    completed_line = f"Tasks completed this week: {completed_this_week}"
+    if args.weekly:
+        completed_last_week = sum(
+            1
+            for t in tasks
+            if t.done and t.done_at and prev_week_start <= t.done_at[:10] <= prev_week_end
+        )
+        completed_line += f" (last week: {completed_last_week})"
+    print(completed_line)
 
     habits = HabitStore().load()
     print()
@@ -603,8 +614,14 @@ def cmd_stats(_store: None, args: argparse.Namespace) -> int:
 
     entries = JournalStore().load()
     recent_entries = sum(1 for e in entries if e.created_at[:10] >= week_start)
+    entries_line = f"Journal entries in the last 7 days: {recent_entries}"
+    if args.weekly:
+        recent_entries_last_week = sum(
+            1 for e in entries if prev_week_start <= e.created_at[:10] <= prev_week_end
+        )
+        entries_line += f" (last week: {recent_entries_last_week})"
     print()
-    print(f"Journal entries in the last 7 days: {recent_entries}")
+    print(entries_line)
 
     return 0
 
@@ -1053,8 +1070,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_stats = sub.add_parser(
         "stats",
         help="Tasks completed this week, current streaks, journal cadence",
-        epilog=_examples("onepact stats"),
+        epilog=_examples("onepact stats", "onepact stats --weekly"),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_stats.add_argument(
+        "--weekly",
+        action="store_true",
+        help="Compare this week's tasks-completed and journal counts against last week's",
     )
     p_stats.set_defaults(func=cmd_stats, store_type="none")
 
