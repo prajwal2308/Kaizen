@@ -192,9 +192,9 @@ nothing destructive in between) reports "Nothing to undo" the second
 time rather than reaching further back — even if older backups are
 still sitting in `backups/` from earlier in the day.
 
-These automatic backups protect against a bad `rm` or `migrate`, but
-they live inside `~/.onepact/` itself, so they're no help if that whole
-directory is lost, moved, or corrupted. For real disaster recovery, use
+These automatic backups protect against a bad `rm`, `migrate`, or
+`archive`, but they live inside `~/.onepact/` itself, so they're no
+help if that whole directory is lost, moved, or corrupted. For real disaster recovery, use
 [`export`](#export--import) to write a copy of your tasks somewhere
 else entirely — a synced folder, another drive, version control — on
 whatever cadence matters to you; `import` brings it back on a fresh
@@ -397,7 +397,7 @@ onepact completion zsh > ~/.zsh/completions/_onepact
 
 Tab-completes top-level commands (`onepact d<TAB>` → `done`) and, one
 level deeper, each command group's own subcommands (`onepact journal
-<TAB>` → `add list rm search show`; same for `habit` and `config`).
+<TAB>` → `add edit list rm search show`; same for `habit` and `config`).
 It doesn't complete flag values. The script is generated from
 `onepact`'s actual command set each time you run `completion`, so it
 can't go stale the way a hand-copied one would as commands are added.
@@ -405,7 +405,7 @@ can't go stale the way a hand-copied one would as commands are added.
 ## Development
 
 ```bash
-pip install -e . pytest ruff mypy
+pip install -e . pytest pytest-cov ruff mypy
 pytest -q
 ruff check src tests
 mypy
