@@ -15,6 +15,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
+from onepact import ui
 from onepact.color import colorize, should_color
 from onepact.config import BACKENDS, SUPPORTED_KEYS, load_config, set_config_value
 from onepact.sqlite_storage import SqliteTaskStore
@@ -626,6 +627,14 @@ def cmd_stats(_store: None, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ui(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = store.load()
+    habits = HabitStore().load()
+    entries = JournalStore().load()
+    today = _today().isoformat()
+    return ui.run(tasks, habits, entries, today)
+
+
 def _subcommands_of(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
     """Returns {name: subparser} for `parser`'s subparsers action, if it has
     one. Relies on argparse's private `_SubParsersAction` (the same
@@ -1079,6 +1088,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Compare this week's tasks-completed and journal counts against last week's",
     )
     p_stats.set_defaults(func=cmd_stats, store_type="none")
+
+    p_ui = sub.add_parser(
+        "ui",
+        help="Full-screen dashboard: tasks, habits, and recent journal entries",
+        epilog=_examples("onepact ui"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_ui.set_defaults(func=cmd_ui)
 
     p_completion = sub.add_parser(
         "completion",

@@ -345,6 +345,20 @@ rather than just seeing one snapshot. Habit streaks aren't compared this
 way, since a streak is already a running count rather than a per-week
 number.
 
+## Terminal UI
+
+```bash
+onepact ui
+```
+
+A full-screen dashboard on top of the regular commands, not a
+replacement for them — every command above keeps working exactly as
+it does today. `ui` shows three panels: Tasks (unfinished tasks, same
+info as `list`), Habits (name, frequency, and current streak), and
+Journal (your 5 most recent entries). Side by side on a wide terminal,
+stacked on a narrow one. This first pass is read-only — any key quits,
+nothing else does anything yet.
+
 ## Daily habits & review workflow
 
 Habits, journaling, and daily review are meant to be used together,

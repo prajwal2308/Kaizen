@@ -61,6 +61,10 @@ src/onepact/
                      minimal hand-rolled TOML parser (see "Why no
                      dependencies?" for why it's not `tomllib`)
   color.py           terminal color autodetection and ANSI formatting
+  ui.py              onepact ui's curses dashboard -- panel-building
+                     functions are plain data in, plain strings out
+                     (unit-testable); only run() and below touch curses
+                     itself, which needs a real terminal to test
 
 tests/
   test_cli.py            every CLI command, end to end
@@ -69,6 +73,9 @@ tests/
                           against the JSON TaskStore for the same inputs
   test_config.py          config.toml parsing and writing
   test_color.py           color autodetection and NO_COLOR handling
+  test_ui.py              ui.py's panel-building functions, plus run()'s
+                          curses-error handling (monkeypatched, since
+                          curses itself needs a real terminal)
 ```
 
 [SCHEMA.md](SCHEMA.md) documents the SQLite schema in more depth than
