@@ -356,8 +356,13 @@ replacement for them — every command above keeps working exactly as
 it does today. `ui` shows three panels: Tasks (unfinished tasks, same
 info as `list`), Habits (name, frequency, and current streak), and
 Journal (your 5 most recent entries). Side by side on a wide terminal,
-stacked on a narrow one. This first pass is read-only — any key quits,
-nothing else does anything yet.
+stacked on a narrow one.
+
+`Tab`/`Shift+Tab` move focus between panels (the focused one's title
+is highlighted); `↑`/`↓` or `j`/`k` move the selection within whichever
+panel has focus; `q` quits. `space`/`enter` is reserved for acting on
+whatever's selected — marking a task done, checking in a habit — but
+doesn't do anything yet; that lands in upcoming items.
 
 ## Daily habits & review workflow
 

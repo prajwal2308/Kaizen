@@ -120,7 +120,7 @@ keeps working exactly as it does today — this is additive, not a
 replacement.
 
 - [x] 69. `onepact ui` — a new top-level command that launches a full-screen `curses` dashboard. First pass is read-only: a task panel (same info as `list`), a habit panel (name/frequency/streak), and a recent-journal panel, laid out side by side or stacked depending on terminal size.
-- [ ] 70. A thin state/action layer between the dashboard and `curses` itself (what's focused, what a keypress does to the underlying stores) kept separate from the actual screen-drawing code, so that layer can be unit-tested without a real terminal -- `curses` itself can't run under `pytest` without one.
+- [x] 70. A thin state/action layer between the dashboard and `curses` itself (what's focused, what a keypress does to the underlying stores) kept separate from the actual screen-drawing code, so that layer can be unit-tested without a real terminal -- `curses` itself can't run under `pytest` without one.
 - [ ] 71. Task panel becomes interactive: arrow keys/`j`/`k` to move the selection, `space`/`enter` to toggle a task done, writing through to the real `TaskStore`/`SqliteTaskStore` (whichever backend is active) rather than a separate copy of the data.
 - [ ] 72. Habit panel becomes interactive: a keypress checks in the selected habit, reusing `cmd_habit_check`'s existing streak logic rather than duplicating it.
 - [ ] 73. `Tab`/`shift+Tab` to switch which panel has focus, `q` to quit, and the existing `color.py` palette reused for priorities/overdue/streaks so the dashboard looks consistent with the plain-CLI output instead of introducing its own color scheme.

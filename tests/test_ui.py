@@ -132,3 +132,105 @@ def test_run_reports_curses_errors_instead_of_raising(monkeypatch, capsys):
 def test_run_returns_zero_on_success(monkeypatch):
     monkeypatch.setattr(curses, "wrapper", lambda func, *args: None)
     assert ui.run([], [], [], "2026-01-10") == 0
+
+
+def test_dashboard_state_defaults_to_tasks_focused():
+    state = ui.DashboardState()
+    assert state.focus == 0
+    assert state.focused_panel == "tasks"
+    assert state.selected == (0, 0, 0)
+
+
+def test_handle_key_q_quits():
+    state = ui.DashboardState()
+    new_state, action = ui.handle_key(state, ord("q"), (3, 3, 3))
+    assert action == "quit"
+    assert new_state == state
+
+
+def test_handle_key_capital_q_quits():
+    state = ui.DashboardState()
+    _, action = ui.handle_key(state, ord("Q"), (3, 3, 3))
+    assert action == "quit"
+
+
+def test_handle_key_tab_moves_focus_forward_and_wraps():
+    state = ui.DashboardState()
+    state, action = ui.handle_key(state, ord("\t"), (3, 3, 3))
+    assert action is None
+    assert state.focused_panel == "habits"
+
+    state, _ = ui.handle_key(state, ord("\t"), (3, 3, 3))
+    assert state.focused_panel == "journal"
+
+    state, _ = ui.handle_key(state, ord("\t"), (3, 3, 3))
+    assert state.focused_panel == "tasks"
+
+
+def test_handle_key_shift_tab_moves_focus_backward_and_wraps():
+    state = ui.DashboardState()
+    state, action = ui.handle_key(state, curses.KEY_BTAB, (3, 3, 3))
+    assert action is None
+    assert state.focused_panel == "journal"
+
+
+def test_handle_key_down_moves_selection_in_focused_panel_only():
+    state = ui.DashboardState()
+    state, action = ui.handle_key(state, curses.KEY_DOWN, (3, 3, 3))
+    assert action is None
+    assert state.selected == (1, 0, 0)
+
+
+def test_handle_key_j_also_moves_selection_down():
+    state = ui.DashboardState()
+    state, _ = ui.handle_key(state, ord("j"), (3, 3, 3))
+    assert state.selected == (1, 0, 0)
+
+
+def test_handle_key_up_and_k_move_selection_up_and_wrap():
+    state = ui.DashboardState()
+    state, action = ui.handle_key(state, curses.KEY_UP, (3, 3, 3))
+    assert action is None
+    assert state.selected == (2, 0, 0)
+
+    state, _ = ui.handle_key(state, ord("k"), (3, 3, 3))
+    assert state.selected == (1, 0, 0)
+
+
+def test_handle_key_down_wraps_to_zero_at_end_of_panel():
+    state = ui.DashboardState(selected=(2, 0, 0))
+    state, _ = ui.handle_key(state, curses.KEY_DOWN, (3, 3, 3))
+    assert state.selected == (0, 0, 0)
+
+
+def test_handle_key_selection_moves_in_whichever_panel_is_focused():
+    state = ui.DashboardState(focus=1)
+    state, _ = ui.handle_key(state, curses.KEY_DOWN, (3, 3, 3))
+    assert state.selected == (0, 1, 0)
+    assert state.focus == 1
+
+
+def test_handle_key_selection_is_a_no_op_on_an_empty_panel():
+    state = ui.DashboardState()
+    state, action = ui.handle_key(state, curses.KEY_DOWN, (0, 3, 3))
+    assert action is None
+    assert state.selected == (0, 0, 0)
+
+
+def test_handle_key_space_and_enter_return_activate():
+    state = ui.DashboardState()
+    _, action = ui.handle_key(state, ord(" "), (3, 3, 3))
+    assert action == "activate"
+
+    _, action = ui.handle_key(state, ord("\n"), (3, 3, 3))
+    assert action == "activate"
+
+    _, action = ui.handle_key(state, curses.KEY_ENTER, (3, 3, 3))
+    assert action == "activate"
+
+
+def test_handle_key_unrecognized_key_is_a_no_op():
+    state = ui.DashboardState()
+    new_state, action = ui.handle_key(state, ord("z"), (3, 3, 3))
+    assert action is None
+    assert new_state == state
