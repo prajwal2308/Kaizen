@@ -1,3 +1,5 @@
+from datetime import date
+
 from onepact.storage import (
     Entry,
     Habit,
@@ -5,6 +7,7 @@ from onepact.storage import (
     JournalStore,
     Task,
     TaskStore,
+    complete_task,
     is_overdue,
     priority_rank,
 )
@@ -107,6 +110,63 @@ def test_next_id_increments_from_max(tmp_path):
     store = TaskStore(data_dir=tmp_path)
     assert store.next_id([]) == 1
     assert store.next_id([Task(id=1, title="a"), Task(id=5, title="b")]) == 6
+
+
+def test_complete_task_marks_done_with_timestamp():
+    tasks = [Task(id=1, title="write report")]
+    result = complete_task(tasks, 1, date(2026, 1, 10))
+    assert result is not None
+    completed, next_task = result
+    assert completed.done is True
+    assert completed.done_at is not None
+    assert next_task is None
+
+
+def test_complete_task_unknown_id_returns_none():
+    tasks = [Task(id=1, title="write report")]
+    assert complete_task(tasks, 999, date(2026, 1, 10)) is None
+
+
+def test_complete_task_non_recurring_creates_no_next_occurrence():
+    tasks = [Task(id=1, title="one-off")]
+    complete_task(tasks, 1, date(2026, 1, 10))
+    assert len(tasks) == 1
+
+
+def test_complete_task_daily_repeat_creates_next_occurrence_one_day_later():
+    tasks = [Task(id=1, title="exercise", priority="high", tags=["health"], repeat="daily")]
+    result = complete_task(tasks, 1, date(2026, 1, 10))
+    assert result is not None
+    _, next_task = result
+    assert next_task is not None
+    assert next_task.title == "exercise"
+    assert next_task.priority == "high"
+    assert next_task.tags == ["health"]
+    assert next_task.repeat == "daily"
+    assert next_task.due == "2026-01-11"
+    assert len(tasks) == 2
+
+
+def test_complete_task_weekly_repeat_creates_next_occurrence_one_week_later():
+    tasks = [Task(id=1, title="review inbox", repeat="weekly")]
+    result = complete_task(tasks, 1, date(2026, 1, 10))
+    assert result is not None
+    _, next_task = result
+    assert next_task is not None
+    assert next_task.due == "2026-01-17"
+
+
+def test_complete_task_next_occurrence_id_is_independent_of_which_tasks_are_done():
+    tasks = [
+        Task(id=1, title="a", repeat="daily"),
+        Task(id=2, title="b"),
+        Task(id=5, title="c"),
+    ]
+    result = complete_task(tasks, 1, date(2026, 1, 10))
+    assert result is not None
+    _, next_task = result
+    assert next_task is not None
+    assert next_task.id == 6
 
 
 def test_entry_has_created_at_timestamp():

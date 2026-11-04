@@ -29,6 +29,7 @@ from onepact.storage import (
     JournalStore,
     Task,
     TaskStore,
+    complete_task,
     is_overdue,
     priority_rank,
 )
@@ -245,38 +246,21 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
     return 1
 
 
-_REPEAT_DELTA = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
-
-
 def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
-    for t in tasks:
-        if t.id == args.id:
-            t.done = True
-            t.done_at = datetime.now(timezone.utc).isoformat()
-            next_task = None
-            if t.repeat:
-                today = datetime.now(timezone.utc).date()
-                next_due = (today + _REPEAT_DELTA[t.repeat]).isoformat()
-                next_task = Task(
-                    id=store.next_id(tasks),
-                    title=t.title,
-                    priority=t.priority,
-                    due=next_due,
-                    tags=list(t.tags),
-                    repeat=t.repeat,
-                )
-                tasks.append(next_task)
-            store.save(tasks)
-            print(f"Marked #{t.id} done.")
-            if next_task is not None:
-                print(
-                    f"Created #{next_task.id}: {next_task.title} "
-                    f"[due {next_task.due}] (next {t.repeat} occurrence)"
-                )
-            return 0
-    print(f"No task with id {args.id}", file=sys.stderr)
-    return 1
+    result = complete_task(tasks, args.id, _today())
+    if result is None:
+        print(f"No task with id {args.id}", file=sys.stderr)
+        return 1
+    completed, next_task = result
+    store.save(tasks)
+    print(f"Marked #{completed.id} done.")
+    if next_task is not None:
+        print(
+            f"Created #{next_task.id}: {next_task.title} "
+            f"[due {next_task.due}] (next {completed.repeat} occurrence)"
+        )
+    return 0
 
 
 def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
@@ -632,7 +616,7 @@ def cmd_ui(store: TaskStore, args: argparse.Namespace) -> int:
     habits = HabitStore().load()
     entries = JournalStore().load()
     today = _today().isoformat()
-    return ui.run(tasks, habits, entries, today)
+    return ui.run(tasks, habits, entries, today, save_tasks=store.save)
 
 
 def _subcommands_of(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:

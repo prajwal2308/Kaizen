@@ -1,4 +1,5 @@
 import curses
+from datetime import date
 
 from onepact import ui
 from onepact.storage import Entry, Habit, Task
@@ -37,6 +38,54 @@ def test_task_lines_flags_overdue():
     tasks = [Task(id=1, title="late task", due="2020-01-01")]
     lines = ui.task_lines(tasks, "2026-01-10")
     assert lines == ["#1 (med) late task [due 2020-01-01] OVERDUE"]
+
+
+def test_toggle_selected_task_marks_the_task_at_that_index_done():
+    tasks = [Task(id=1, title="only task")]
+    assert ui.toggle_selected_task(tasks, 0, date(2026, 1, 10)) is True
+    assert tasks[0].done is True
+    assert tasks[0].done_at is not None
+
+
+def test_toggle_selected_task_uses_the_same_order_as_task_lines():
+    tasks = [
+        Task(id=1, title="low", priority="low"),
+        Task(id=2, title="high", priority="high"),
+    ]
+    # task_lines shows high-priority first, so index 0 is the high-priority task
+    ui.toggle_selected_task(tasks, 0, date(2026, 1, 10))
+    assert tasks[0].id == 1
+    assert tasks[0].done is False
+    assert tasks[1].id == 2
+    assert tasks[1].done is True
+
+
+def test_toggle_selected_task_skips_already_done_tasks_when_indexing():
+    tasks = [
+        Task(id=1, title="already done", done=True),
+        Task(id=2, title="pending"),
+    ]
+    ui.toggle_selected_task(tasks, 0, date(2026, 1, 10))
+    assert tasks[0].done is True
+    assert tasks[1].done is True
+
+
+def test_toggle_selected_task_out_of_range_index_is_a_no_op():
+    tasks = [Task(id=1, title="only task")]
+    assert ui.toggle_selected_task(tasks, 5, date(2026, 1, 10)) is False
+    assert tasks[0].done is False
+
+
+def test_toggle_selected_task_on_empty_list_is_a_no_op():
+    assert ui.toggle_selected_task([], 0, date(2026, 1, 10)) is False
+
+
+def test_toggle_selected_task_recurring_creates_next_occurrence():
+    tasks = [Task(id=1, title="exercise", repeat="daily")]
+    ui.toggle_selected_task(tasks, 0, date(2026, 1, 10))
+    assert len(tasks) == 2
+    assert tasks[1].due == "2026-01-11"
+    assert tasks[1].done is False
 
 
 def test_habit_lines_empty():
@@ -124,14 +173,14 @@ def test_run_reports_curses_errors_instead_of_raising(monkeypatch, capsys):
 
     monkeypatch.setattr(curses, "wrapper", fake_wrapper)
 
-    assert ui.run([], [], [], "2026-01-10") == 1
+    assert ui.run([], [], [], "2026-01-10", save_tasks=lambda tasks: None) == 1
     err = capsys.readouterr().err
     assert "Could not start the terminal UI" in err
 
 
 def test_run_returns_zero_on_success(monkeypatch):
     monkeypatch.setattr(curses, "wrapper", lambda func, *args: None)
-    assert ui.run([], [], [], "2026-01-10") == 0
+    assert ui.run([], [], [], "2026-01-10", save_tasks=lambda tasks: None) == 0
 
 
 def test_dashboard_state_defaults_to_tasks_focused():
@@ -234,3 +283,66 @@ def test_handle_key_unrecognized_key_is_a_no_op():
     new_state, action = ui.handle_key(state, ord("z"), (3, 3, 3))
     assert action is None
     assert new_state == state
+
+
+class _FakeWindow:
+    """Stands in for a real curses window so `_render`'s loop (state,
+    action-handling, task mutation, save callback) can run under pytest
+    -- only the handful of methods/attributes `_render`/`_draw_panel`
+    actually call, none of which draw anything for real.
+    """
+
+    def __init__(self, height=50, width=120, keys=()):
+        self._height = height
+        self._width = width
+        self.keys = list(keys)
+
+    def erase(self):
+        pass
+
+    def noutrefresh(self):
+        pass
+
+    def getmaxyx(self):
+        return (self._height, self._width)
+
+    def border(self):
+        pass
+
+    def addnstr(self, *args, **kwargs):
+        pass
+
+    def getch(self):
+        return self.keys.pop(0)
+
+
+def test_render_activate_toggles_task_and_saves_through(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+
+    tasks = [Task(id=1, title="only task")]
+    stdscr = _FakeWindow(keys=[ord(" "), ord("q")])
+    saved: list[list[Task]] = []
+
+    ui._render(stdscr, tasks, [], [], "2026-01-10", save_tasks=saved.append)
+
+    assert tasks[0].done is True
+    assert saved and saved[0][0].done is True
+
+
+def test_render_activate_on_habits_panel_does_not_touch_tasks(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+
+    tasks = [Task(id=1, title="only task")]
+    habits = [Habit(name="exercise", frequency="daily")]
+    # Tab moves focus to habits, then space -- not wired to anything yet (item 72)
+    stdscr = _FakeWindow(keys=[ord("\t"), ord(" "), ord("q")])
+    saved: list[list[Task]] = []
+
+    ui._render(stdscr, tasks, habits, [], "2026-01-10", save_tasks=saved.append)
+
+    assert tasks[0].done is False
+    assert saved == []

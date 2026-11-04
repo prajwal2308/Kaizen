@@ -11,19 +11,25 @@ from __future__ import annotations
 
 import curses
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 
-from onepact.storage import Entry, Habit, Task, is_overdue, priority_rank
+from onepact.storage import Entry, Habit, Task, complete_task, is_overdue, priority_rank
 
 _JOURNAL_PANEL_LIMIT = 5
 PANELS = ("tasks", "habits", "journal")
 
 
-def task_lines(tasks: list[Task], today: str) -> list[str]:
-    pending = sorted(
+def _pending_tasks(tasks: list[Task]) -> list[Task]:
+    return sorted(
         (t for t in tasks if not t.done),
         key=lambda t: (priority_rank(t.priority), t.id),
     )
+
+
+def task_lines(tasks: list[Task], today: str) -> list[str]:
+    pending = _pending_tasks(tasks)
     if not pending:
         return ["No tasks."]
     lines = []
@@ -35,6 +41,22 @@ def task_lines(tasks: list[Task], today: str) -> list[str]:
                 line += " OVERDUE"
         lines.append(line)
     return lines
+
+
+def toggle_selected_task(tasks: list[Task], index: int, today: date) -> bool:
+    """Marks the task at `index` into the pending (not-done) task list --
+    sorted the same way `task_lines` displays it -- done, reusing
+    `complete_task`'s existing recurring-occurrence handling rather than
+    duplicating it. Returns whether a task was actually toggled; `False`
+    for an out-of-range index (an empty panel, or a stale selection left
+    over from before the panel's contents changed) is a no-op rather
+    than an error, since there's nothing destructive about ignoring it.
+    """
+    pending = _pending_tasks(tasks)
+    if not 0 <= index < len(pending):
+        return False
+    complete_task(tasks, pending[index].id, today)
+    return True
 
 
 def habit_lines(habits: list[Habit], today: str) -> list[str]:
@@ -164,6 +186,7 @@ def _render(
     habits: list[Habit],
     entries: list[Entry],
     today: str,
+    save_tasks: Callable[[list[Task]], None],
 ) -> None:
     curses.curs_set(0)
     state = DashboardState()
@@ -197,11 +220,20 @@ def _render(
         state, action = handle_key(state, key, panel_lengths)
         if action == "quit":
             return
+        if action == "activate" and state.focused_panel == "tasks":
+            if toggle_selected_task(tasks, state.selected[0], date.fromisoformat(today)):
+                save_tasks(tasks)
 
 
-def run(tasks: list[Task], habits: list[Habit], entries: list[Entry], today: str) -> int:
+def run(
+    tasks: list[Task],
+    habits: list[Habit],
+    entries: list[Entry],
+    today: str,
+    save_tasks: Callable[[list[Task]], None],
+) -> int:
     try:
-        curses.wrapper(_render, tasks, habits, entries, today)
+        curses.wrapper(_render, tasks, habits, entries, today, save_tasks)
     except curses.error as exc:
         print(f"Could not start the terminal UI: {exc}", file=sys.stderr)
         return 1

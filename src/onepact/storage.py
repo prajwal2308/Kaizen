@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -63,6 +63,38 @@ def is_overdue(task: Task, today: str) -> bool:
     `today` is an ISO `YYYY-MM-DD` string; ISO dates compare correctly as strings.
     """
     return task.due is not None and not task.done and task.due < today
+
+
+_REPEAT_DELTA = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
+
+
+def complete_task(tasks: list[Task], task_id: int, today: date) -> tuple[Task, Task | None] | None:
+    """Marks the task with this id done (setting `done_at` to the current
+    moment) and, if it's recurring, appends the next occurrence to
+    `tasks` in place -- same title, priority, tags, and repeat setting,
+    due one day (`daily`) or one week (`weekly`) from `today`. Returns
+    `(completed_task, next_occurrence_or_None)`, or `None` if no task
+    with this id exists. Shared by `cmd_done` and the interactive task
+    panel in `onepact ui` so this isn't duplicated in two places.
+    """
+    for t in tasks:
+        if t.id == task_id:
+            t.done = True
+            t.done_at = datetime.now(timezone.utc).isoformat()
+            next_task = None
+            if t.repeat:
+                next_due = (today + _REPEAT_DELTA[t.repeat]).isoformat()
+                next_task = Task(
+                    id=max((x.id for x in tasks), default=0) + 1,
+                    title=t.title,
+                    priority=t.priority,
+                    due=next_due,
+                    tags=list(t.tags),
+                    repeat=t.repeat,
+                )
+                tasks.append(next_task)
+            return t, next_task
+    return None
 
 
 class TaskStore:
