@@ -7,6 +7,7 @@ from onepact.storage import (
     JournalStore,
     Task,
     TaskStore,
+    check_in_habit,
     complete_task,
     is_overdue,
     priority_rank,
@@ -167,6 +168,49 @@ def test_complete_task_next_occurrence_id_is_independent_of_which_tasks_are_done
     _, next_task = result
     assert next_task is not None
     assert next_task.id == 6
+
+
+def test_check_in_habit_first_time_increments_from_zero():
+    habit = Habit(name="exercise", frequency="daily", streak=0)
+    status = check_in_habit(habit, date(2026, 1, 10))
+    assert status == "ok"
+    assert habit.streak == 1
+    assert habit.last_checked == "2026-01-10"
+
+
+def test_check_in_habit_same_day_twice_is_a_no_op():
+    habit = Habit(name="exercise", frequency="daily", streak=3, last_checked="2026-01-10")
+    status = check_in_habit(habit, date(2026, 1, 10))
+    assert status == "already"
+    assert habit.streak == 3
+
+
+def test_check_in_habit_daily_continues_streak_within_grace_period():
+    habit = Habit(name="exercise", frequency="daily", streak=3, last_checked="2026-01-09")
+    status = check_in_habit(habit, date(2026, 1, 10))
+    assert status == "ok"
+    assert habit.streak == 4
+
+
+def test_check_in_habit_daily_resets_streak_after_missed_checkin():
+    habit = Habit(name="exercise", frequency="daily", streak=5, last_checked="2026-01-07")
+    status = check_in_habit(habit, date(2026, 1, 10))
+    assert status == "missed"
+    assert habit.streak == 1
+
+
+def test_check_in_habit_weekly_continues_streak_within_grace_period():
+    habit = Habit(name="review inbox", frequency="weekly", streak=2, last_checked="2026-01-03")
+    status = check_in_habit(habit, date(2026, 1, 10))
+    assert status == "ok"
+    assert habit.streak == 3
+
+
+def test_check_in_habit_weekly_resets_streak_after_missed_checkin():
+    habit = Habit(name="review inbox", frequency="weekly", streak=2, last_checked="2026-01-01")
+    status = check_in_habit(habit, date(2026, 1, 10))
+    assert status == "missed"
+    assert habit.streak == 1
 
 
 def test_entry_has_created_at_timestamp():

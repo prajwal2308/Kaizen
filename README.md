@@ -360,11 +360,12 @@ stacked on a narrow one.
 
 `Tab`/`Shift+Tab` move focus between panels (the focused one's title
 is highlighted); `↑`/`↓` or `j`/`k` move the selection within whichever
-panel has focus; `q` quits. On the Tasks panel, `space`/`enter` marks
-the selected task done — written through to the real store right
-away, same as `onepact done`, including creating a recurring task's
-next occurrence. Habits/Journal don't respond to `space`/`enter` yet;
-that's still upcoming.
+panel has focus; `q` quits. `space`/`enter` acts on whatever's
+selected: on the Tasks panel, marks the task done (including creating
+a recurring task's next occurrence); on the Habits panel, checks in
+the habit. Both write through to the real store right away, same as
+`onepact done`/`onepact habit check`. Journal doesn't respond to
+`space`/`enter` yet — it's a read-only panel for now.
 
 ## Daily habits & review workflow
 

@@ -114,6 +114,33 @@ def test_habit_lines_does_not_flag_when_not_checked_today():
     assert lines == ["exercise [daily] streak:5"]
 
 
+def test_check_in_selected_habit_checks_in_the_habit_at_that_index():
+    habits = [Habit(name="exercise", frequency="daily")]
+    assert ui.check_in_selected_habit(habits, 0, date(2026, 1, 10)) is True
+    assert habits[0].streak == 1
+    assert habits[0].last_checked == "2026-01-10"
+
+
+def test_check_in_selected_habit_uses_the_same_order_as_habit_lines():
+    habits = [
+        Habit(name="first", frequency="daily"),
+        Habit(name="second", frequency="daily"),
+    ]
+    ui.check_in_selected_habit(habits, 1, date(2026, 1, 10))
+    assert habits[0].streak == 0
+    assert habits[1].streak == 1
+
+
+def test_check_in_selected_habit_out_of_range_index_is_a_no_op():
+    habits = [Habit(name="exercise", frequency="daily")]
+    assert ui.check_in_selected_habit(habits, 5, date(2026, 1, 10)) is False
+    assert habits[0].streak == 0
+
+
+def test_check_in_selected_habit_on_empty_list_is_a_no_op():
+    assert ui.check_in_selected_habit([], 0, date(2026, 1, 10)) is False
+
+
 def test_journal_lines_empty():
     assert ui.journal_lines([]) == ["No journal entries."]
 
@@ -173,14 +200,24 @@ def test_run_reports_curses_errors_instead_of_raising(monkeypatch, capsys):
 
     monkeypatch.setattr(curses, "wrapper", fake_wrapper)
 
-    assert ui.run([], [], [], "2026-01-10", save_tasks=lambda tasks: None) == 1
+    assert (
+        ui.run(
+            [], [], [], "2026-01-10", save_tasks=lambda tasks: None, save_habits=lambda h: None
+        )
+        == 1
+    )
     err = capsys.readouterr().err
     assert "Could not start the terminal UI" in err
 
 
 def test_run_returns_zero_on_success(monkeypatch):
     monkeypatch.setattr(curses, "wrapper", lambda func, *args: None)
-    assert ui.run([], [], [], "2026-01-10", save_tasks=lambda tasks: None) == 0
+    assert (
+        ui.run(
+            [], [], [], "2026-01-10", save_tasks=lambda tasks: None, save_habits=lambda h: None
+        )
+        == 0
+    )
 
 
 def test_dashboard_state_defaults_to_tasks_focused():
@@ -323,26 +360,45 @@ def test_render_activate_toggles_task_and_saves_through(monkeypatch):
 
     tasks = [Task(id=1, title="only task")]
     stdscr = _FakeWindow(keys=[ord(" "), ord("q")])
-    saved: list[list[Task]] = []
+    saved_tasks: list[list[Task]] = []
 
-    ui._render(stdscr, tasks, [], [], "2026-01-10", save_tasks=saved.append)
+    ui._render(
+        stdscr,
+        tasks,
+        [],
+        [],
+        "2026-01-10",
+        save_tasks=saved_tasks.append,
+        save_habits=lambda h: None,
+    )
 
     assert tasks[0].done is True
-    assert saved and saved[0][0].done is True
+    assert saved_tasks and saved_tasks[0][0].done is True
 
 
-def test_render_activate_on_habits_panel_does_not_touch_tasks(monkeypatch):
+def test_render_activate_on_habits_panel_checks_in_habit_without_touching_tasks(monkeypatch):
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
     monkeypatch.setattr(curses, "doupdate", lambda: None)
     monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
 
     tasks = [Task(id=1, title="only task")]
     habits = [Habit(name="exercise", frequency="daily")]
-    # Tab moves focus to habits, then space -- not wired to anything yet (item 72)
+    # Tab moves focus to habits, then space checks in the selected habit.
     stdscr = _FakeWindow(keys=[ord("\t"), ord(" "), ord("q")])
-    saved: list[list[Task]] = []
+    saved_tasks: list[list[Task]] = []
+    saved_habits: list[list[Habit]] = []
 
-    ui._render(stdscr, tasks, habits, [], "2026-01-10", save_tasks=saved.append)
+    ui._render(
+        stdscr,
+        tasks,
+        habits,
+        [],
+        "2026-01-10",
+        save_tasks=saved_tasks.append,
+        save_habits=saved_habits.append,
+    )
 
     assert tasks[0].done is False
-    assert saved == []
+    assert saved_tasks == []
+    assert habits[0].streak == 1
+    assert saved_habits and saved_habits[0][0].streak == 1

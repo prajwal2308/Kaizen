@@ -29,6 +29,7 @@ from onepact.storage import (
     JournalStore,
     Task,
     TaskStore,
+    check_in_habit,
     complete_task,
     is_overdue,
     priority_rank,
@@ -456,30 +457,18 @@ def _resolve_due(value: str | None) -> str | None:
     return value
 
 
-_STREAK_GRACE_DAYS = {"daily": 1, "weekly": 7}
-
-
 def cmd_habit_check(store: HabitStore, args: argparse.Namespace) -> int:
     habits = store.load()
     habit = next((h for h in habits if h.name == args.name), None)
     if habit is None:
         print(f"No habit named {args.name!r}", file=sys.stderr)
         return 1
-    today = _today()
-    today_str = today.isoformat()
-    if habit.last_checked == today_str:
+    status = check_in_habit(habit, _today())
+    if status == "already":
         print(f"Habit {args.name!r} already checked in today.")
         return 0
-    missed = False
-    if habit.last_checked is not None:
-        gap_days = (today - date.fromisoformat(habit.last_checked)).days
-        if gap_days > _STREAK_GRACE_DAYS[habit.frequency]:
-            habit.streak = 0
-            missed = True
-    habit.streak += 1
-    habit.last_checked = today_str
     store.save(habits)
-    if missed:
+    if status == "missed":
         print(f"Checked in {args.name!r}: streak reset to 1 (missed a check-in)")
     else:
         print(f"Checked in {args.name!r}: streak is now {habit.streak}")
@@ -613,10 +602,18 @@ def cmd_stats(_store: None, args: argparse.Namespace) -> int:
 
 def cmd_ui(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
-    habits = HabitStore().load()
+    habit_store = HabitStore()
+    habits = habit_store.load()
     entries = JournalStore().load()
     today = _today().isoformat()
-    return ui.run(tasks, habits, entries, today, save_tasks=store.save)
+    return ui.run(
+        tasks,
+        habits,
+        entries,
+        today,
+        save_tasks=store.save,
+        save_habits=habit_store.save,
+    )
 
 
 def _subcommands_of(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:

@@ -185,6 +185,34 @@ class Habit:
         )
 
 
+_STREAK_GRACE_DAYS = {"daily": 1, "weekly": 7}
+
+
+def check_in_habit(habit: Habit, today: date) -> str:
+    """Marks `habit` checked in for `today`, mutating it in place.
+    Continues the streak if the gap since `last_checked` is within the
+    habit's frequency's grace period, resets it to 1 otherwise -- same
+    rule either way, just whether it's a break or a continuation.
+    Returns `"already"` if the habit was already checked in today
+    (nothing changes), `"missed"` if a check-in was overdue (streak
+    reset to 1), or `"ok"` for a normal increment. Shared by
+    `cmd_habit_check` and the interactive habit panel in `onepact ui`
+    so the streak rules aren't duplicated in two places.
+    """
+    today_str = today.isoformat()
+    if habit.last_checked == today_str:
+        return "already"
+    missed = False
+    if habit.last_checked is not None:
+        gap_days = (today - date.fromisoformat(habit.last_checked)).days
+        if gap_days > _STREAK_GRACE_DAYS[habit.frequency]:
+            habit.streak = 0
+            missed = True
+    habit.streak += 1
+    habit.last_checked = today_str
+    return "missed" if missed else "ok"
+
+
 class HabitStore:
     """Persists habits as JSON in their own file, separate from tasks and
     journal entries. Habits are identified by name rather than an int id,

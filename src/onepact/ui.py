@@ -15,7 +15,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
-from onepact.storage import Entry, Habit, Task, complete_task, is_overdue, priority_rank
+from onepact.storage import (
+    Entry,
+    Habit,
+    Task,
+    check_in_habit,
+    complete_task,
+    is_overdue,
+    priority_rank,
+)
 
 _JOURNAL_PANEL_LIMIT = 5
 PANELS = ("tasks", "habits", "journal")
@@ -69,6 +77,21 @@ def habit_lines(habits: list[Habit], today: str) -> list[str]:
             line += " (checked in today)"
         lines.append(line)
     return lines
+
+
+def check_in_selected_habit(habits: list[Habit], index: int, today: date) -> bool:
+    """Checks in the habit at `index` -- `habit_lines` shows habits in
+    the same order they're given, with no filtering or sorting, so the
+    index lines up directly against `habits` -- reusing
+    `check_in_habit`'s existing streak/grace-period logic rather than
+    duplicating it. Returns whether a habit was actually checked in;
+    `False` for an out-of-range index (an empty panel, or a stale
+    selection) is a no-op rather than an error.
+    """
+    if not 0 <= index < len(habits):
+        return False
+    check_in_habit(habits[index], today)
+    return True
 
 
 def journal_lines(entries: list[Entry]) -> list[str]:
@@ -187,6 +210,7 @@ def _render(
     entries: list[Entry],
     today: str,
     save_tasks: Callable[[list[Task]], None],
+    save_habits: Callable[[list[Habit]], None],
 ) -> None:
     curses.curs_set(0)
     state = DashboardState()
@@ -220,9 +244,14 @@ def _render(
         state, action = handle_key(state, key, panel_lengths)
         if action == "quit":
             return
-        if action == "activate" and state.focused_panel == "tasks":
-            if toggle_selected_task(tasks, state.selected[0], date.fromisoformat(today)):
-                save_tasks(tasks)
+        if action == "activate":
+            today_date = date.fromisoformat(today)
+            if state.focused_panel == "tasks":
+                if toggle_selected_task(tasks, state.selected[0], today_date):
+                    save_tasks(tasks)
+            elif state.focused_panel == "habits":
+                if check_in_selected_habit(habits, state.selected[1], today_date):
+                    save_habits(habits)
 
 
 def run(
@@ -231,9 +260,10 @@ def run(
     entries: list[Entry],
     today: str,
     save_tasks: Callable[[list[Task]], None],
+    save_habits: Callable[[list[Habit]], None],
 ) -> int:
     try:
-        curses.wrapper(_render, tasks, habits, entries, today, save_tasks)
+        curses.wrapper(_render, tasks, habits, entries, today, save_tasks, save_habits)
     except curses.error as exc:
         print(f"Could not start the terminal UI: {exc}", file=sys.stderr)
         return 1
