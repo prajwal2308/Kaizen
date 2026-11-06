@@ -10,6 +10,7 @@ Only `run()` and below touch `curses` itself.
 from __future__ import annotations
 
 import curses
+import os
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -24,6 +25,31 @@ from onepact.storage import (
     is_overdue,
     priority_rank,
 )
+
+# Mirrors cli.py's own _PRIORITY_COLOR -- kept as a separate small, static
+# copy rather than importing it, since cli.py already imports this module
+# (importing the other way back would be circular) and this mapping is
+# tiny and effectively never changes, unlike the recurring-task/streak
+# logic shared via storage.complete_task()/check_in_habit().
+_PRIORITY_COLOR = {"high": "red", "med": "yellow", "low": "blue"}
+
+
+def task_line_color(t: Task, today: str) -> str:
+    """The same palette `cli.py`'s plain-text output uses for a task
+    line: red for an overdue task (overriding its priority color, since
+    overdue is the more urgent signal), otherwise its priority's color.
+    """
+    if is_overdue(t, today):
+        return "red"
+    return _PRIORITY_COLOR[t.priority]
+
+
+def habit_line_color(h: Habit, today: str) -> str:
+    """Green if checked in today (the more relevant signal when
+    present), otherwise magenta -- the same color `cli.py` uses for a
+    habit's streak number.
+    """
+    return "green" if h.last_checked == today else "magenta"
 
 _JOURNAL_PANEL_LIMIT = 5
 PANELS = ("tasks", "habits", "journal")
@@ -105,6 +131,19 @@ def journal_lines(entries: list[Entry]) -> list[str]:
     return lines
 
 
+def _task_line_colors(tasks: list[Task], today: str) -> list[str | None]:
+    pending = _pending_tasks(tasks)
+    if not pending:
+        return [None]
+    return [task_line_color(t, today) for t in pending]
+
+
+def _habit_line_colors(habits: list[Habit], today: str) -> list[str | None]:
+    if not habits:
+        return [None]
+    return [habit_line_color(h, today) for h in habits]
+
+
 @dataclass(frozen=True)
 class DashboardState:
     """Which panel has focus, and which line is selected within each
@@ -167,13 +206,50 @@ def handle_key(
 
 _SIDE_BY_SIDE_MIN_WIDTH = 100
 
+_CURSES_COLOR = {
+    "red": curses.COLOR_RED,
+    "yellow": curses.COLOR_YELLOW,
+    "blue": curses.COLOR_BLUE,
+    "magenta": curses.COLOR_MAGENTA,
+    "green": curses.COLOR_GREEN,
+    "cyan": curses.COLOR_CYAN,
+}
+
+
+def _init_color_pairs() -> dict[str, int]:
+    """Maps each color name `color.py`'s palette uses to a curses
+    color-pair number, initialized once the screen is up -- `curses`
+    has its own color mechanism (numbered pairs set with `init_pair`),
+    not ANSI escapes, so the palette can't just be reused by calling
+    `colorize()` and feeding the result to `addnstr`. Returns `{}`
+    (meaning: don't color anything, exactly like the plain CLI output
+    in the same situation) if `NO_COLOR` is set or the terminal doesn't
+    support color at all -- the same two conditions `should_color()`
+    checks for the regular commands.
+    """
+    if "NO_COLOR" in os.environ or not curses.has_colors():
+        return {}
+    curses.start_color()
+    try:
+        curses.use_default_colors()
+        background = -1
+    except curses.error:
+        background = curses.COLOR_BLACK
+    pairs = {}
+    for number, name in enumerate(_CURSES_COLOR, start=1):
+        curses.init_pair(number, _CURSES_COLOR[name], background)
+        pairs[name] = number
+    return pairs
+
 
 def _draw_panel(
     win: curses.window,
     title: str,
     lines: list[str],
+    line_colors: list[str | None],
     focused: bool,
     selected_index: int | None,
+    color_pairs: dict[str, int],
 ) -> None:
     win.erase()
     win.border()
@@ -182,6 +258,9 @@ def _draw_panel(
     win.addnstr(0, 2, f" {title} ", max(width - 4, 0), title_attr)
     for i, line in enumerate(lines[: max(height - 2, 0)]):
         line_attr = curses.A_REVERSE if i == selected_index else curses.A_NORMAL
+        color_name = line_colors[i] if i < len(line_colors) else None
+        if color_name is not None and color_name in color_pairs:
+            line_attr |= curses.color_pair(color_pairs[color_name])
         win.addnstr(i + 1, 1, line, max(width - 2, 0), line_attr)
     win.noutrefresh()
 
@@ -213,6 +292,7 @@ def _render(
     save_habits: Callable[[list[Habit]], None],
 ) -> None:
     curses.curs_set(0)
+    color_pairs = _init_color_pairs()
     state = DashboardState()
     while True:
         stdscr.erase()
@@ -225,19 +305,24 @@ def _render(
             habit_lines(habits, today),
             journal_lines(entries),
         )
+        panel_colors: tuple[list[str | None], ...] = (
+            _task_line_colors(tasks, today),
+            _habit_line_colors(habits, today),
+            [None] * len(panel_lines[2]),
+        )
         panel_lengths = (
             sum(1 for t in tasks if not t.done),
             len(habits),
             min(len(entries), _JOURNAL_PANEL_LIMIT),
         )
 
-        for i, ((win_height, win_width, y, x), title, lines) in enumerate(
-            zip(layout, _PANEL_TITLES, panel_lines)
+        for i, ((win_height, win_width, y, x), title, lines, colors) in enumerate(
+            zip(layout, _PANEL_TITLES, panel_lines, panel_colors)
         ):
             win = curses.newwin(win_height, win_width, y, x)
             focused = i == state.focus
             selected_index = state.selected[i] if focused else None
-            _draw_panel(win, title, lines, focused, selected_index)
+            _draw_panel(win, title, lines, colors, focused, selected_index, color_pairs)
 
         curses.doupdate()
         key = stdscr.getch()

@@ -367,6 +367,12 @@ the habit. Both write through to the real store right away, same as
 `onepact done`/`onepact habit check`. Journal doesn't respond to
 `space`/`enter` yet — it's a read-only panel for now.
 
+Tasks and habits are colored the same way the plain commands already
+color them — priority (red/yellow/blue), overdue in red, a habit's
+streak in magenta, green once checked in today — so the dashboard
+looks like the same tool rather than introducing its own palette.
+Respects `NO_COLOR` the same way the rest of `onepact` does.
+
 ## Daily habits & review workflow
 
 Habits, journaling, and daily review are meant to be used together,

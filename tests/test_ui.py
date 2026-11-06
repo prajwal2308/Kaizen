@@ -40,6 +40,27 @@ def test_task_lines_flags_overdue():
     assert lines == ["#1 (med) late task [due 2020-01-01] OVERDUE"]
 
 
+def test_task_line_color_matches_priority():
+    assert ui.task_line_color(Task(id=1, title="a", priority="high"), "2026-01-10") == "red"
+    assert ui.task_line_color(Task(id=1, title="a", priority="med"), "2026-01-10") == "yellow"
+    assert ui.task_line_color(Task(id=1, title="a", priority="low"), "2026-01-10") == "blue"
+
+
+def test_task_line_color_overdue_overrides_priority():
+    task = Task(id=1, title="a", priority="low", due="2020-01-01")
+    assert ui.task_line_color(task, "2026-01-10") == "red"
+
+
+def test_habit_line_color_magenta_when_not_checked_in_today():
+    habit = Habit(name="exercise", frequency="daily", last_checked="2026-01-09")
+    assert ui.habit_line_color(habit, "2026-01-10") == "magenta"
+
+
+def test_habit_line_color_green_when_checked_in_today():
+    habit = Habit(name="exercise", frequency="daily", last_checked="2026-01-10")
+    assert ui.habit_line_color(habit, "2026-01-10") == "green"
+
+
 def test_toggle_selected_task_marks_the_task_at_that_index_done():
     tasks = [Task(id=1, title="only task")]
     assert ui.toggle_selected_task(tasks, 0, date(2026, 1, 10)) is True
@@ -192,6 +213,35 @@ def test_layout_stacked_on_narrow_terminal():
     assert sum(heights) == 30
     ys = [y for _, _, y, _ in layout]
     assert ys == [0, heights[0], heights[0] + heights[1]]
+
+
+def test_init_color_pairs_empty_when_terminal_has_no_color_support(monkeypatch):
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
+    assert ui._init_color_pairs() == {}
+
+
+def test_init_color_pairs_empty_when_no_color_env_var_set(monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setattr(curses, "has_colors", lambda: True)
+    assert ui._init_color_pairs() == {}
+
+
+def test_init_color_pairs_maps_every_palette_color_to_a_distinct_pair_number(monkeypatch):
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(curses, "has_colors", lambda: True)
+    monkeypatch.setattr(curses, "start_color", lambda: None)
+    monkeypatch.setattr(curses, "use_default_colors", lambda: None)
+    registered = {}
+    monkeypatch.setattr(
+        curses, "init_pair", lambda number, fg, bg: registered.setdefault(number, (fg, bg))
+    )
+
+    pairs = ui._init_color_pairs()
+
+    assert set(pairs) == {"red", "yellow", "blue", "magenta", "green", "cyan"}
+    assert len(set(pairs.values())) == len(pairs)
+    for name, number in pairs.items():
+        assert registered[number] == (ui._CURSES_COLOR[name], -1)
 
 
 def test_run_reports_curses_errors_instead_of_raising(monkeypatch, capsys):
@@ -357,6 +407,7 @@ def test_render_activate_toggles_task_and_saves_through(monkeypatch):
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
     monkeypatch.setattr(curses, "doupdate", lambda: None)
     monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
 
     tasks = [Task(id=1, title="only task")]
     stdscr = _FakeWindow(keys=[ord(" "), ord("q")])
@@ -380,6 +431,7 @@ def test_render_activate_on_habits_panel_checks_in_habit_without_touching_tasks(
     monkeypatch.setattr(curses, "curs_set", lambda n: None)
     monkeypatch.setattr(curses, "doupdate", lambda: None)
     monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
 
     tasks = [Task(id=1, title="only task")]
     habits = [Habit(name="exercise", frequency="daily")]
