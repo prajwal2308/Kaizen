@@ -124,7 +124,7 @@ replacement.
 - [x] 71. Task panel becomes interactive: arrow keys/`j`/`k` to move the selection, `space`/`enter` to toggle a task done, writing through to the real `TaskStore`/`SqliteTaskStore` (whichever backend is active) rather than a separate copy of the data.
 - [x] 72. Habit panel becomes interactive: a keypress checks in the selected habit, reusing `cmd_habit_check`'s existing streak logic rather than duplicating it.
 - [x] 73. `Tab`/`shift+Tab` to switch which panel has focus, `q` to quit, and the existing `color.py` palette reused for priorities/overdue/streaks so the dashboard looks consistent with the plain-CLI output instead of introducing its own color scheme.
-- [ ] 74. Graceful fallback: `onepact ui` on a terminal too small for the layout, or on a platform/environment where `curses` can't initialize (e.g. output piped to a file), prints a clear error instead of crashing.
+- [x] 74. Graceful fallback: `onepact ui` on a terminal too small for the layout, or on a platform/environment where `curses` can't initialize (e.g. output piped to a file), prints a clear error instead of crashing.
 - [ ] 75. README section documenting `onepact ui`: what it shows, its keybindings, and that it's optional -- every existing command is unaffected.
 
 ---

@@ -373,6 +373,13 @@ streak in magenta, green once checked in today — so the dashboard
 looks like the same tool rather than introducing its own palette.
 Respects `NO_COLOR` the same way the rest of `onepact` does.
 
+If your terminal can't run `ui` at all (no real terminal attached,
+e.g. piped output), it prints a one-line error and exits instead of
+a raw traceback. If it's just too small for the layout, it shows a
+"Terminal too small" message with the current and required size
+instead of a garbled screen — resize the window and it recovers on
+its own, no need to restart.
+
 ## Daily habits & review workflow
 
 Habits, journaling, and daily review are meant to be used together,

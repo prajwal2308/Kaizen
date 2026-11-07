@@ -279,6 +279,28 @@ def _layout(height: int, width: int) -> tuple[tuple[int, int, int, int], ...]:
     return ((row, width, 0, 0), (row, width, row, 0), (last_row, width, 2 * row, 0))
 
 
+_MIN_HEIGHT = 12
+_MIN_WIDTH = 20
+
+
+def is_too_small(height: int, width: int) -> bool:
+    """Below this, the three-panel layout stops being readable --
+    `curses` itself doesn't error on a tinier window (`newwin` with a
+    0 height/width is tolerated, just draws nothing useful), it just
+    renders overlapping, unreadable borders, which is worse than a
+    clear message since there's no error to see.
+    """
+    return height < _MIN_HEIGHT or width < _MIN_WIDTH
+
+
+def too_small_message(height: int, width: int) -> str:
+    return (
+        f"Terminal too small for onepact ui "
+        f"(need at least {_MIN_WIDTH}x{_MIN_HEIGHT}, got {width}x{height}). "
+        "Resize it, or press q to quit."
+    )
+
+
 _PANEL_TITLES = ("Tasks", "Habits", "Journal")
 
 
@@ -296,8 +318,18 @@ def _render(
     state = DashboardState()
     while True:
         stdscr.erase()
-        stdscr.noutrefresh()
         height, width = stdscr.getmaxyx()
+
+        if is_too_small(height, width):
+            stdscr.addnstr(0, 0, too_small_message(height, width), max(width, 0))
+            stdscr.noutrefresh()
+            curses.doupdate()
+            key = stdscr.getch()
+            if key in _QUIT_KEYS:
+                return
+            continue
+
+        stdscr.noutrefresh()
         layout = _layout(height, width)
 
         panel_lines = (

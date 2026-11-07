@@ -215,6 +215,29 @@ def test_layout_stacked_on_narrow_terminal():
     assert ys == [0, heights[0], heights[0] + heights[1]]
 
 
+def test_is_too_small_true_below_minimum_height():
+    assert ui.is_too_small(height=ui._MIN_HEIGHT - 1, width=ui._MIN_WIDTH) is True
+
+
+def test_is_too_small_true_below_minimum_width():
+    assert ui.is_too_small(height=ui._MIN_HEIGHT, width=ui._MIN_WIDTH - 1) is True
+
+
+def test_is_too_small_false_at_exact_minimum():
+    assert ui.is_too_small(height=ui._MIN_HEIGHT, width=ui._MIN_WIDTH) is False
+
+
+def test_is_too_small_false_comfortably_above_minimum():
+    assert ui.is_too_small(height=50, width=120) is False
+
+
+def test_too_small_message_mentions_current_and_required_size():
+    message = ui.too_small_message(height=5, width=10)
+    assert "10x5" in message
+    assert f"{ui._MIN_WIDTH}x{ui._MIN_HEIGHT}" in message
+    assert "q" in message
+
+
 def test_init_color_pairs_empty_when_terminal_has_no_color_support(monkeypatch):
     monkeypatch.setattr(curses, "has_colors", lambda: False)
     assert ui._init_color_pairs() == {}
@@ -454,3 +477,51 @@ def test_render_activate_on_habits_panel_checks_in_habit_without_touching_tasks(
     assert saved_tasks == []
     assert habits[0].streak == 1
     assert saved_habits and saved_habits[0][0].streak == 1
+
+
+def test_render_on_too_small_terminal_shows_message_and_quits_on_q(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
+
+    stdscr = _FakeWindow(height=5, width=10, keys=[ord("x"), ord("q")])
+
+    # Doesn't raise despite being far too small for the real 3-panel
+    # layout -- a 'x' keypress is ignored (loop just re-checks size),
+    # 'q' quits cleanly.
+    ui._render(
+        stdscr, [], [], [], "2026-01-10", save_tasks=lambda t: None, save_habits=lambda h: None
+    )
+
+
+def test_render_recovers_once_terminal_is_resized_above_minimum(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
+
+    stdscr = _FakeWindow(height=5, width=10, keys=[ord("x"), ord("q")])
+    # Simulate a resize between the first and second loop iteration.
+    original_getmaxyx = stdscr.getmaxyx
+    calls = {"n": 0}
+
+    def getmaxyx():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return original_getmaxyx()
+        return (50, 120)
+
+    stdscr.getmaxyx = getmaxyx
+
+    tasks = [Task(id=1, title="only task")]
+    ui._render(
+        stdscr,
+        tasks,
+        [],
+        [],
+        "2026-01-10",
+        save_tasks=lambda t: None,
+        save_habits=lambda h: None,
+    )
+    assert calls["n"] == 2
