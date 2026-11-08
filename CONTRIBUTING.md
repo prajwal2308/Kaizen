@@ -61,10 +61,24 @@ src/onepact/
                      minimal hand-rolled TOML parser (see "Why no
                      dependencies?" for why it's not `tomllib`)
   color.py           terminal color autodetection and ANSI formatting
-  ui.py              onepact ui's curses dashboard -- panel-building
-                     functions are plain data in, plain strings out
-                     (unit-testable); only run() and below touch curses
-                     itself, which needs a real terminal to test
+  ui.py              onepact ui's curses dashboard, split so most of it
+                     is unit-testable without a real terminal: panel
+                     content and line colors (task_lines/habit_lines/
+                     journal_lines, task_line_color/habit_line_color)
+                     are plain data in, plain strings/color names out;
+                     DashboardState/handle_key() track focus and
+                     selection as plain indices, with no curses calls
+                     beyond key-code constants; toggle_selected_task()/
+                     check_in_selected_habit() write real store changes
+                     through, reusing storage.complete_task()/
+                     check_in_habit() rather than duplicating cmd_done's/
+                     cmd_habit_check's logic. Only the actual
+                     screen-drawing (_render, _draw_panel,
+                     _init_color_pairs) calls curses functions that need
+                     a real terminal to run for real -- a fake window
+                     object stands in for one in most tests; verified by
+                     hand in tmux where that's not enough (color
+                     rendering, actual terminal resizing)
 
 tests/
   test_cli.py            every CLI command, end to end
@@ -73,9 +87,11 @@ tests/
                           against the JSON TaskStore for the same inputs
   test_config.py          config.toml parsing and writing
   test_color.py           color autodetection and NO_COLOR handling
-  test_ui.py              ui.py's panel-building functions, plus run()'s
-                          curses-error handling (monkeypatched, since
-                          curses itself needs a real terminal)
+  test_ui.py              ui.py's panel-building/coloring functions,
+                          DashboardState/handle_key, and the render
+                          loop's focus/selection/activate/too-small
+                          handling via a fake curses window (no real
+                          terminal needed for any of that)
 ```
 
 [SCHEMA.md](SCHEMA.md) documents the SQLite schema in more depth than
