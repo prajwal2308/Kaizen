@@ -136,7 +136,7 @@ that reading back through the whole codebase and CHANGELOG surfaced
 read-only in one panel (item 76), and a few consistency gaps between
 features that grew independently across earlier phases:
 
-- [ ] 76. `onepact ui`'s Journal panel becomes interactive: a keypress opens `$EDITOR` to add a new entry directly from the dashboard, reusing the existing journal-add logic rather than duplicating it -- the same pattern items 71/72 already established for the Tasks/Habits panels.
+- [x] 76. `onepact ui`'s Journal panel becomes interactive: a keypress opens `$EDITOR` to add a new entry directly from the dashboard, reusing the existing journal-add logic rather than duplicating it -- the same pattern items 71/72 already established for the Tasks/Habits panels.
 - [ ] 77. `--tag <t>` (repeatable) on `onepact journal`, shown in `journal list`/`show` and filterable via `journal list --tag <t>` -- tasks support tags, journal entries currently only support task-linking; this closes that inconsistency.
 - [ ] 78. `ONEPACT_HOME` environment variable overrides the default `~/.onepact` data directory (falls back to the current default when unset) -- useful for separate profiles or testing without a flag on every command.
 - [ ] 79. Fix `undo`'s known gap with multi-file destructive operations (flagged in the CHANGELOG when `archive` shipped): extend the undo log to record every file a destructive operation touched, not just one, so `onepact undo` right after an `archive` run actually reverses the `archive.json` append too, not just restoring the active task list.

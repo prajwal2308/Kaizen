@@ -4,12 +4,10 @@ import argparse
 import csv
 import io
 import json
-import os
 import shutil
 import sqlite3
 import subprocess
 import sys
-import tempfile
 from datetime import date, datetime, timedelta, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -18,6 +16,7 @@ from pathlib import Path
 from onepact import ui
 from onepact.color import colorize, should_color
 from onepact.config import BACKENDS, SUPPORTED_KEYS, load_config, set_config_value
+from onepact.editor import read_entry_from_editor as _read_entry_from_editor
 from onepact.sqlite_storage import SqliteTaskStore
 from onepact.storage import (
     DEFAULT_PRIORITY,
@@ -276,22 +275,6 @@ def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
             return 0
     print(f"No task with id {args.id}", file=sys.stderr)
     return 1
-
-
-def _read_entry_from_editor(initial: str = "") -> str:
-    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "vi"
-    fd, tmp_path = tempfile.mkstemp(suffix=".md", prefix="onepact-journal-")
-    if initial:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(initial)
-    else:
-        os.close(fd)
-    try:
-        subprocess.run([editor, tmp_path], check=True)
-        with open(tmp_path, encoding="utf-8") as f:
-            return f.read()
-    finally:
-        os.remove(tmp_path)
 
 
 def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
@@ -604,7 +587,8 @@ def cmd_ui(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     habit_store = HabitStore()
     habits = habit_store.load()
-    entries = JournalStore().load()
+    journal_store = JournalStore()
+    entries = journal_store.load()
     today = _today().isoformat()
     return ui.run(
         tasks,
@@ -613,6 +597,7 @@ def cmd_ui(store: TaskStore, args: argparse.Namespace) -> int:
         today,
         save_tasks=store.save,
         save_habits=habit_store.save,
+        save_entries=journal_store.save,
     )
 
 

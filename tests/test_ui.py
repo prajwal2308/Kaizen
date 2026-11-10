@@ -193,6 +193,31 @@ def test_journal_lines_capped_at_five():
     assert lines[0] == "#7 [2026-01-07] entry 7"
 
 
+def test_build_journal_entry_creates_entry_with_next_id():
+    entries = [Entry(id=1, created_at="2026-01-01T00:00:00+00:00", body="first")]
+    entry = ui.build_journal_entry(entries, "a new note")
+    assert entry is not None
+    assert entry.id == 2
+    assert entry.body == "a new note"
+
+
+def test_build_journal_entry_starts_at_one_on_empty_store():
+    entry = ui.build_journal_entry([], "first note")
+    assert entry is not None
+    assert entry.id == 1
+
+
+def test_build_journal_entry_strips_whitespace():
+    entry = ui.build_journal_entry([], "  some text  \n")
+    assert entry is not None
+    assert entry.body == "some text"
+
+
+def test_build_journal_entry_empty_body_returns_none():
+    assert ui.build_journal_entry([], "") is None
+    assert ui.build_journal_entry([], "   \n") is None
+
+
 def test_layout_side_by_side_on_wide_terminal():
     layout = ui._layout(height=40, width=120)
     assert len(layout) == 3
@@ -275,7 +300,13 @@ def test_run_reports_curses_errors_instead_of_raising(monkeypatch, capsys):
 
     assert (
         ui.run(
-            [], [], [], "2026-01-10", save_tasks=lambda tasks: None, save_habits=lambda h: None
+            [],
+            [],
+            [],
+            "2026-01-10",
+            save_tasks=lambda tasks: None,
+            save_habits=lambda h: None,
+            save_entries=lambda e: None,
         )
         == 1
     )
@@ -287,7 +318,13 @@ def test_run_returns_zero_on_success(monkeypatch):
     monkeypatch.setattr(curses, "wrapper", lambda func, *args: None)
     assert (
         ui.run(
-            [], [], [], "2026-01-10", save_tasks=lambda tasks: None, save_habits=lambda h: None
+            [],
+            [],
+            [],
+            "2026-01-10",
+            save_tasks=lambda tasks: None,
+            save_habits=lambda h: None,
+            save_entries=lambda e: None,
         )
         == 0
     )
@@ -388,6 +425,16 @@ def test_handle_key_space_and_enter_return_activate():
     assert action == "activate"
 
 
+def test_handle_key_a_and_capital_a_return_add():
+    state = ui.DashboardState()
+    new_state, action = ui.handle_key(state, ord("a"), (3, 3, 3))
+    assert action == "add"
+    assert new_state == state
+
+    _, action = ui.handle_key(state, ord("A"), (3, 3, 3))
+    assert action == "add"
+
+
 def test_handle_key_unrecognized_key_is_a_no_op():
     state = ui.DashboardState()
     new_state, action = ui.handle_key(state, ord("z"), (3, 3, 3))
@@ -411,6 +458,9 @@ class _FakeWindow:
         pass
 
     def noutrefresh(self):
+        pass
+
+    def refresh(self):
         pass
 
     def getmaxyx(self):
@@ -444,6 +494,7 @@ def test_render_activate_toggles_task_and_saves_through(monkeypatch):
         "2026-01-10",
         save_tasks=saved_tasks.append,
         save_habits=lambda h: None,
+        save_entries=lambda e: None,
     )
 
     assert tasks[0].done is True
@@ -471,6 +522,7 @@ def test_render_activate_on_habits_panel_checks_in_habit_without_touching_tasks(
         "2026-01-10",
         save_tasks=saved_tasks.append,
         save_habits=saved_habits.append,
+        save_entries=lambda e: None,
     )
 
     assert tasks[0].done is False
@@ -491,7 +543,14 @@ def test_render_on_too_small_terminal_shows_message_and_quits_on_q(monkeypatch):
     # layout -- a 'x' keypress is ignored (loop just re-checks size),
     # 'q' quits cleanly.
     ui._render(
-        stdscr, [], [], [], "2026-01-10", save_tasks=lambda t: None, save_habits=lambda h: None
+        stdscr,
+        [],
+        [],
+        [],
+        "2026-01-10",
+        save_tasks=lambda t: None,
+        save_habits=lambda h: None,
+        save_entries=lambda e: None,
     )
 
 
@@ -523,5 +582,105 @@ def test_render_recovers_once_terminal_is_resized_above_minimum(monkeypatch):
         "2026-01-10",
         save_tasks=lambda t: None,
         save_habits=lambda h: None,
+        save_entries=lambda e: None,
     )
     assert calls["n"] == 2
+
+
+def test_render_add_on_journal_panel_appends_entry_and_saves_through(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
+    monkeypatch.setattr(curses, "def_prog_mode", lambda: None)
+    monkeypatch.setattr(curses, "endwin", lambda: None)
+    monkeypatch.setattr(curses, "reset_prog_mode", lambda: None)
+    monkeypatch.setattr(ui, "read_entry_from_editor", lambda: "a new entry\n")
+
+    entries: list[Entry] = []
+    # Tab, Tab moves focus to journal, then 'a' adds a new entry.
+    stdscr = _FakeWindow(keys=[ord("\t"), ord("\t"), ord("a"), ord("q")])
+    saved_entries: list[list[Entry]] = []
+
+    ui._render(
+        stdscr,
+        [],
+        [],
+        entries,
+        "2026-01-10",
+        save_tasks=lambda t: None,
+        save_habits=lambda h: None,
+        save_entries=saved_entries.append,
+    )
+
+    assert len(entries) == 1
+    assert entries[0].body == "a new entry"
+    assert saved_entries and saved_entries[0][0].body == "a new entry"
+
+
+def test_render_add_on_tasks_panel_is_a_no_op(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
+
+    entries: list[Entry] = []
+    stdscr = _FakeWindow(keys=[ord("a"), ord("q")])
+    saved_entries: list[list[Entry]] = []
+
+    ui._render(
+        stdscr,
+        [],
+        [],
+        entries,
+        "2026-01-10",
+        save_tasks=lambda t: None,
+        save_habits=lambda h: None,
+        save_entries=saved_entries.append,
+    )
+
+    assert entries == []
+    assert saved_entries == []
+
+
+def test_render_add_with_empty_editor_result_does_not_save(monkeypatch):
+    monkeypatch.setattr(curses, "curs_set", lambda n: None)
+    monkeypatch.setattr(curses, "doupdate", lambda: None)
+    monkeypatch.setattr(curses, "newwin", lambda h, w, y, x: _FakeWindow(h, w))
+    monkeypatch.setattr(curses, "has_colors", lambda: False)
+    monkeypatch.setattr(curses, "def_prog_mode", lambda: None)
+    monkeypatch.setattr(curses, "endwin", lambda: None)
+    monkeypatch.setattr(curses, "reset_prog_mode", lambda: None)
+    monkeypatch.setattr(ui, "read_entry_from_editor", lambda: "   \n")
+
+    entries: list[Entry] = []
+    stdscr = _FakeWindow(keys=[ord("\t"), ord("\t"), ord("a"), ord("q")])
+    saved_entries: list[list[Entry]] = []
+
+    ui._render(
+        stdscr,
+        [],
+        [],
+        entries,
+        "2026-01-10",
+        save_tasks=lambda t: None,
+        save_habits=lambda h: None,
+        save_entries=saved_entries.append,
+    )
+
+    assert entries == []
+    assert saved_entries == []
+
+
+def test_read_journal_entry_suspending_curses_treats_editor_failure_as_empty(monkeypatch):
+    monkeypatch.setattr(curses, "def_prog_mode", lambda: None)
+    monkeypatch.setattr(curses, "endwin", lambda: None)
+    monkeypatch.setattr(curses, "reset_prog_mode", lambda: None)
+
+    def _boom():
+        raise OSError("editor not found")
+
+    monkeypatch.setattr(ui, "read_entry_from_editor", _boom)
+
+    stdscr = _FakeWindow()
+    assert ui._read_journal_entry_suspending_curses(stdscr) == ""

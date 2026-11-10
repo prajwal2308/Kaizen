@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import curses
 import os
+import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
+from onepact.editor import read_entry_from_editor
 from onepact.storage import (
     Entry,
     Habit,
@@ -131,6 +133,20 @@ def journal_lines(entries: list[Entry]) -> list[str]:
     return lines
 
 
+def build_journal_entry(entries: list[Entry], body: str) -> Entry | None:
+    """Builds a new `Entry` from `body` -- already read back from the
+    editor by the time this is called -- with the next available id,
+    the same way the no-args `journal` command does. Returns `None`
+    for an empty-after-stripping body, matching that command's existing
+    "nothing to save" behavior, rather than saving a blank entry.
+    """
+    body = body.strip()
+    if not body:
+        return None
+    next_id = max((e.id for e in entries), default=0) + 1
+    return Entry(id=next_id, body=body)
+
+
 def _task_line_colors(tasks: list[Task], today: str) -> list[str | None]:
     pending = _pending_tasks(tasks)
     if not pending:
@@ -167,6 +183,7 @@ _FOCUS_PREV_KEYS = {curses.KEY_BTAB}
 _SELECT_DOWN_KEYS = {curses.KEY_DOWN, ord("j")}
 _SELECT_UP_KEYS = {curses.KEY_UP, ord("k")}
 _ACTIVATE_KEYS = {ord(" "), ord("\n"), curses.KEY_ENTER}
+_ADD_KEYS = {ord("a"), ord("A")}
 
 
 def handle_key(
@@ -178,7 +195,9 @@ def handle_key(
     and an action: `"quit"`, `"activate"` (something should happen to
     whichever item is selected in the focused panel -- deciding what
     is items 71/72's job, not this function's, since no store is
-    touched here), or `None` for a key that was fully handled by just
+    touched here), `"add"` (something new should be created in the
+    focused panel -- so far only meaningful on the Journal panel, item
+    76's job), or `None` for a key that was fully handled by just
     updating navigation state, or that wasn't recognized at all (in
     which case `state` comes back unchanged).
     """
@@ -201,6 +220,8 @@ def handle_key(
         return DashboardState(focus=state.focus, selected=new_selected), None
     if key in _ACTIVATE_KEYS:
         return state, "activate"
+    if key in _ADD_KEYS:
+        return state, "add"
     return state, None
 
 
@@ -304,6 +325,25 @@ def too_small_message(height: int, width: int) -> str:
 _PANEL_TITLES = ("Tasks", "Habits", "Journal")
 
 
+def _read_journal_entry_suspending_curses(stdscr: curses.window) -> str:
+    """Gives the real terminal back to `$EDITOR` for the duration of the
+    call -- `curses` keeps its own idea of terminal state (raw mode, no
+    echo, ...) that would otherwise fight with whatever the editor sets
+    up -- then restores the dashboard's screen afterward. An editor
+    that fails to launch at all (bad `$EDITOR`, etc.) is treated the
+    same as an empty entry rather than crashing the dashboard.
+    """
+    curses.def_prog_mode()
+    curses.endwin()
+    try:
+        body = read_entry_from_editor()
+    except (OSError, subprocess.CalledProcessError):
+        body = ""
+    curses.reset_prog_mode()
+    stdscr.refresh()
+    return body
+
+
 def _render(
     stdscr: curses.window,
     tasks: list[Task],
@@ -312,6 +352,7 @@ def _render(
     today: str,
     save_tasks: Callable[[list[Task]], None],
     save_habits: Callable[[list[Habit]], None],
+    save_entries: Callable[[list[Entry]], None],
 ) -> None:
     curses.curs_set(0)
     color_pairs = _init_color_pairs()
@@ -369,6 +410,12 @@ def _render(
             elif state.focused_panel == "habits":
                 if check_in_selected_habit(habits, state.selected[1], today_date):
                     save_habits(habits)
+        elif action == "add" and state.focused_panel == "journal":
+            body = _read_journal_entry_suspending_curses(stdscr)
+            entry = build_journal_entry(entries, body)
+            if entry is not None:
+                entries.append(entry)
+                save_entries(entries)
 
 
 def run(
@@ -378,9 +425,12 @@ def run(
     today: str,
     save_tasks: Callable[[list[Task]], None],
     save_habits: Callable[[list[Habit]], None],
+    save_entries: Callable[[list[Entry]], None],
 ) -> int:
     try:
-        curses.wrapper(_render, tasks, habits, entries, today, save_tasks, save_habits)
+        curses.wrapper(
+            _render, tasks, habits, entries, today, save_tasks, save_habits, save_entries
+        )
     except curses.error as exc:
         print(f"Could not start the terminal UI: {exc}", file=sys.stderr)
         return 1

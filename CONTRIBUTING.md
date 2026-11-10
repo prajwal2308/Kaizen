@@ -79,6 +79,10 @@ src/onepact/
                      object stands in for one in most tests; verified by
                      hand in tmux where that's not enough (color
                      rendering, actual terminal resizing)
+  editor.py          launches $EDITOR/$VISUAL against a tempfile and
+                     returns what was written -- shared by the no-args
+                     `journal` command and onepact ui's Journal panel
+                     (item 76) so this isn't duplicated in both places
 
 tests/
   test_cli.py            every CLI command, end to end
@@ -89,9 +93,12 @@ tests/
   test_color.py           color autodetection and NO_COLOR handling
   test_ui.py              ui.py's panel-building/coloring functions,
                           DashboardState/handle_key, and the render
-                          loop's focus/selection/activate/too-small
+                          loop's focus/selection/activate/add/too-small
                           handling via a fake curses window (no real
                           terminal needed for any of that)
+  test_editor.py          editor.py's $EDITOR/$VISUAL fallback and
+                          tempfile lifecycle, using real fake-editor
+                          shell scripts rather than mocking subprocess
 ```
 
 [SCHEMA.md](SCHEMA.md) documents the SQLite schema in more depth than

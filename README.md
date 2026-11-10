@@ -364,8 +364,10 @@ panel has focus; `q` quits. `space`/`enter` acts on whatever's
 selected: on the Tasks panel, marks the task done (including creating
 a recurring task's next occurrence); on the Habits panel, checks in
 the habit. Both write through to the real store right away, same as
-`onepact done`/`onepact habit check`. Journal doesn't respond to
-`space`/`enter` yet — it's a read-only panel for now.
+`onepact done`/`onepact habit check`. On the Journal panel, `a` opens
+`$EDITOR` to write a new entry (same as the no-args `onepact journal`
+command), handing the terminal back to the dashboard once you save
+and close it.
 
 Tasks and habits are colored the same way the plain commands already
 color them — priority (red/yellow/blue), overdue in red, a habit's
