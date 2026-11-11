@@ -232,6 +232,27 @@ def test_entry_from_dict_defaults_task_id_when_missing():
     assert entry.task_id is None
 
 
+def test_entry_tags_defaults_to_empty_list():
+    assert Entry(id=1, body="a").tags == []
+
+
+def test_entry_from_dict_defaults_tags_when_missing():
+    entry = Entry.from_dict({"id": 1, "body": "legacy entry"})
+    assert entry.tags == []
+
+
+def test_entry_from_dict_reads_tags():
+    entry = Entry.from_dict({"id": 1, "body": "a", "tags": ["work", "urgent"]})
+    assert entry.tags == ["work", "urgent"]
+
+
+def test_entry_tags_defaults_are_independent_instances():
+    a = Entry(id=1, body="a")
+    b = Entry(id=2, body="b")
+    a.tags.append("work")
+    assert b.tags == []
+
+
 def test_entry_from_dict_reads_task_id():
     entry = Entry.from_dict({"id": 1, "body": "a", "task_id": 3})
     assert entry.task_id == 3

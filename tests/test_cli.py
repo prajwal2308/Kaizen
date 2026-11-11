@@ -1590,6 +1590,71 @@ def test_journal_add_with_unknown_task_errors(capsys, tmp_path):
     assert JournalStore(data_dir=tmp_path).load() == []
 
 
+def test_journal_add_with_tags(tmp_path):
+    main(["journal", "fixed the deploy script", "--tag", "work", "--tag", "urgent"])
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == ["work", "urgent"]
+
+
+def test_journal_add_without_tags_defaults_to_empty_list(tmp_path):
+    main(["journal", "a plain entry"])
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == []
+
+
+def test_journal_add_deduplicates_repeated_tags(tmp_path):
+    main(["journal", "entry", "--tag", "work", "--tag", "work"])
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == ["work"]
+
+
+def test_journal_list_shows_tags(capsys):
+    main(["journal", "fixed the deploy script", "--tag", "work", "--tag", "urgent"])
+    capsys.readouterr()
+
+    main(["journal", "list"])
+    out = capsys.readouterr().out
+    assert "[tags: work, urgent]" in out
+
+
+def test_journal_list_filters_by_tag(capsys):
+    main(["journal", "work entry", "--tag", "work"])
+    main(["journal", "home entry", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["journal", "list", "--tag", "work"])
+    out = capsys.readouterr().out
+    assert "work entry" in out
+    assert "home entry" not in out
+
+
+def test_journal_list_tag_filter_with_no_matches(capsys):
+    main(["journal", "home entry", "--tag", "home"])
+    capsys.readouterr()
+
+    assert main(["journal", "list", "--tag", "work"]) == 0
+    out = capsys.readouterr().out
+    assert "No journal entries." in out
+
+
+def test_journal_show_displays_tags(capsys):
+    main(["journal", "fixed the deploy script", "--tag", "work", "--tag", "urgent"])
+    capsys.readouterr()
+
+    main(["journal", "show", "1"])
+    out = capsys.readouterr().out
+    assert "Tags: work, urgent" in out
+
+
+def test_journal_show_displays_no_tags_when_untagged(capsys):
+    main(["journal", "a plain entry"])
+    capsys.readouterr()
+
+    main(["journal", "show", "1"])
+    out = capsys.readouterr().out
+    assert "Tags: (none)" in out
+
+
 def test_journal_list_shows_linked_task(capsys):
     main(["add", "write the report"])
     main(["journal", "finished a draft", "--task", "1"])

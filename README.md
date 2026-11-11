@@ -237,9 +237,11 @@ empty — see [no-color.org](https://no-color.org)). There's no separate
 ```bash
 onepact journal "wrote the weekly review"
 onepact journal "drafted the proposal" --task 1
+onepact journal "fixed the deploy script" --tag work
 onepact journal
 onepact journal list
 onepact journal list --limit 5
+onepact journal list --tag work
 onepact journal show 1
 onepact journal edit 1
 onepact journal search proposal
@@ -255,11 +257,13 @@ something longer — an empty entry, whether from a closed editor or from
 
 Add `--task <id>` to link an entry to an existing task (rejected if the
 task doesn't exist); `journal list` and `journal show` display the link
-when present. `journal list` shows entries most recent first, one line
-each, optionally capped with `--limit N`. `journal show <id>` prints an
+when present. Add `--tag <t>` (repeatable) to tag an entry, same as
+tasks; `journal list --tag <t>` filters to entries with that tag.
+`journal list` shows entries most recent first, one line each,
+optionally capped with `--limit N`. `journal show <id>` prints an
 entry's full body. `journal edit <id>` opens that entry's existing body
-in `$EDITOR` so you can fix it in place -- the id, timestamp, and linked
-task stay the same, only the body changes; an empty result aborts
+in `$EDITOR` so you can fix it in place -- the id, timestamp, tags, and
+linked task stay the same, only the body changes; an empty result aborts
 without saving, same as leaving a new entry blank. `journal search
 <text>` does a case-insensitive substring search across entry bodies,
 most recent match first. `journal rm <id>` asks for confirmation before

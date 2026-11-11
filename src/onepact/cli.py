@@ -294,8 +294,9 @@ def cmd_journal(store: JournalStore, args: argparse.Namespace) -> int:
     if task_id is not None and not any(t.id == task_id for t in _get_task_store().load()):
         print(f"No task with id {task_id}", file=sys.stderr)
         return 1
+    tags = list(dict.fromkeys(args.tags or []))
     entries = store.load()
-    entry = Entry(id=store.next_id(entries), body=body, task_id=task_id)
+    entry = Entry(id=store.next_id(entries), body=body, task_id=task_id, tags=tags)
     entries.append(entry)
     store.save(entries)
     suffix = f" (linked to task #{task_id})" if task_id is not None else ""
@@ -308,11 +309,15 @@ def _format_entry_line(e: Entry, color: bool = False) -> str:
     line = f"#{e.id} [{e.created_at}] {first_line}"
     if e.task_id is not None:
         line += colorize(f" [task #{e.task_id}]", "cyan", enabled=color)
+    if e.tags:
+        line += colorize(f" [tags: {', '.join(e.tags)}]", "cyan", enabled=color)
     return line
 
 
 def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
     entries = list(reversed(store.load()))
+    if args.tag:
+        entries = [e for e in entries if args.tag in e.tags]
     if args.limit is not None:
         entries = entries[: args.limit]
     if not entries:
@@ -343,6 +348,7 @@ def cmd_journal_show(store: JournalStore, args: argparse.Namespace) -> int:
         if e.id == args.id:
             print(f"#{e.id} [{e.created_at}]")
             print(f"Task: #{e.task_id}" if e.task_id is not None else "Task: (none)")
+            print(f"Tags: {', '.join(e.tags) if e.tags else '(none)'}")
             print(e.body)
             return 0
     print(f"No journal entry with id {args.id}", file=sys.stderr)
@@ -1219,6 +1225,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=_examples(
             'onepact journal "wrote the weekly review"',
             'onepact journal "drafted the proposal" --task 1',
+            'onepact journal "fixed the deploy script" --tag work',
             "onepact journal",
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1235,12 +1242,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Link this entry to task <id>",
     )
+    p_journal_add.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Tag the entry (repeatable)",
+    )
     p_journal_add.set_defaults(func=cmd_journal, store_type="journal")
 
     p_journal_list = journal_sub.add_parser(
         "list",
         help="List journal entries, most recent first",
-        epilog=_examples("onepact journal list", "onepact journal list --limit 5"),
+        epilog=_examples(
+            "onepact journal list",
+            "onepact journal list --limit 5",
+            "onepact journal list --tag work",
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_journal_list.add_argument(
@@ -1249,6 +1267,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Show at most this many entries",
     )
+    p_journal_list.add_argument("--tag", default=None, help="Filter to entries with this tag")
     p_journal_list.set_defaults(func=cmd_journal_list, store_type="journal")
 
     p_journal_show = journal_sub.add_parser(

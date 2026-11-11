@@ -126,6 +126,7 @@ class Entry:
     body: str
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     task_id: int | None = None
+    tags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -137,6 +138,7 @@ class Entry:
             body=data["body"],
             created_at=data.get("created_at", ""),
             task_id=data.get("task_id"),
+            tags=list(data.get("tags", [])),
         )
 
 
