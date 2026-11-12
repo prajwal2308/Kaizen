@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 
 def _default_data_dir() -> Path:
+    """`~/.onepact` by default, or `$ONEPACT_HOME` if it's set -- useful
+    for keeping separate profiles (work vs. personal) or pointing a test
+    run at a scratch directory without a `--data-dir` flag on every
+    single command.
+    """
+    override = os.environ.get("ONEPACT_HOME")
+    if override:
+        return Path(override)
     return Path.home() / ".onepact"
 
 

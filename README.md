@@ -200,6 +200,18 @@ else entirely — a synced folder, another drive, version control — on
 whatever cadence matters to you; `import` brings it back on a fresh
 install or after a real loss, not just a single bad command.
 
+Set `ONEPACT_HOME` to point onepact at a different directory instead of
+`~/.onepact` — every file in the table above moves with it. Useful for
+keeping separate profiles (work vs. personal) or trying something out
+in a scratch directory without passing `--data-dir` on every command:
+
+```bash
+export ONEPACT_HOME=~/.onepact-work
+onepact list   # reads/writes ~/.onepact-work instead
+```
+
+An unset or empty `ONEPACT_HOME` falls back to the regular `~/.onepact`.
+
 ## Configuration
 
 ```bash

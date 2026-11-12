@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 from onepact.storage import (
     Entry,
@@ -7,11 +8,29 @@ from onepact.storage import (
     JournalStore,
     Task,
     TaskStore,
+    _default_data_dir,
     check_in_habit,
     complete_task,
     is_overdue,
     priority_rank,
 )
+
+
+def test_default_data_dir_falls_back_to_home_when_unset(monkeypatch):
+    monkeypatch.delenv("ONEPACT_HOME", raising=False)
+    monkeypatch.setattr(Path, "home", lambda: Path("/fake/home"))
+    assert _default_data_dir() == Path("/fake/home/.onepact")
+
+
+def test_default_data_dir_uses_onepact_home_when_set(monkeypatch):
+    monkeypatch.setenv("ONEPACT_HOME", "/tmp/some/custom/profile")
+    assert _default_data_dir() == Path("/tmp/some/custom/profile")
+
+
+def test_default_data_dir_ignores_empty_onepact_home(monkeypatch):
+    monkeypatch.setenv("ONEPACT_HOME", "")
+    monkeypatch.setattr(Path, "home", lambda: Path("/fake/home"))
+    assert _default_data_dir() == Path("/fake/home/.onepact")
 
 
 def test_task_defaults_to_med_priority():
