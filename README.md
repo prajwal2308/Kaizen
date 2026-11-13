@@ -154,10 +154,11 @@ that are done, aren't recurring, and have been done for at least
 once marked done, since that completed instance is the record of a
 past occurrence, not clutter. Running `archive` again later appends
 any newly-qualifying tasks to the same `archive.json` rather than
-overwriting it. Like `rm`/`migrate`, it backs up the active store first
-and `onepact undo` right after an `archive` brings those tasks back —
-though `archive.json` itself isn't trimmed back by `undo`, since the
-undo log only tracks one file at a time.
+overwriting it. Like `rm`/`migrate`, it backs up the active store (and
+`archive.json` itself, if it already existed) first, so `onepact undo`
+right after an `archive` reverses both halves of the move together:
+the tasks come back into the active list and `archive.json` is
+restored to whatever it held immediately before that run.
 
 ## Data & backups
 

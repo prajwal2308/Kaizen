@@ -1306,6 +1306,50 @@ def test_undo_handles_a_missing_backup_file_gracefully(capsys, tmp_path):
     assert "Nothing to undo" in err
 
 
+def test_undo_reverts_archive_restores_tasks_and_removes_archive_file(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+    assert (tmp_path / "archive.json").exists()
+
+    assert main(["undo"]) == 0
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["old done task"]
+    assert not (tmp_path / "archive.json").exists()
+
+
+def test_undo_reverts_archive_when_archive_file_already_had_entries(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="first batch", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=2, title="second batch", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    assert main(["undo"]) == 0
+    archived = json.loads((tmp_path / "archive.json").read_text())
+    assert [a["title"] for a in archived] == ["first batch"]
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == ["second batch"]
+
+
+def test_undo_after_archive_consumes_both_backups(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    assert main(["undo"]) == 0
+    assert not list((tmp_path / "backups").glob("*.bak"))
+
+
 def test_find_matches_task_titles(capsys):
     main(["add", "write the onboarding docs"])
     main(["add", "fix a parser bug"])

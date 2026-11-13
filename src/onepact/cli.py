@@ -114,15 +114,25 @@ def _backup_file(path: Path) -> Path | None:
 _UNDO_LOG_FILE = ".undo.json"
 
 
-def _record_undo(data_dir: Path, target: Path, backup: Path) -> None:
-    """Points the single-level undo log at `backup` as the way to revert
-    `target` to how it was before the destructive write that just made
-    this backup. Overwrites whatever the log previously pointed at --
-    only the most recent reversible action is ever undoable.
+def _record_undo(data_dir: Path, entries: list[tuple[Path, Path | None]]) -> None:
+    """Points the single-level undo log at every file this destructive
+    operation touched, as `(target, backup)` pairs -- `backup` is `None`
+    when `target` didn't exist before the operation, so `undo` deletes
+    it instead of restoring it from a backup that was never made.
+    Overwrites whatever the log previously pointed at -- only the most
+    recent reversible action is ever undoable, across however many
+    files it touched.
     """
     log_path = data_dir / _UNDO_LOG_FILE
     log_path.write_text(
-        json.dumps({"target": str(target), "backup": str(backup)}),
+        json.dumps(
+            {
+                "entries": [
+                    {"target": str(target), "backup": str(backup) if backup else None}
+                    for target, backup in entries
+                ]
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -700,7 +710,7 @@ def cmd_rm(store: TaskStore, args: argparse.Namespace) -> int:
     print(f"Removed #{args.id}")
     if backup_path is not None:
         print(f"Backed up previous data to {backup_path}")
-        _record_undo(store.data_dir, store.path, backup_path)
+        _record_undo(store.data_dir, [(store.path, backup_path)])
     return 0
 
 
@@ -753,7 +763,7 @@ def cmd_migrate(store: TaskStore, args: argparse.Namespace) -> int:
     print(f"Migrated {len(tasks)} task(s) from {store.path} to {sqlite_store.path}")
     if backup_path is not None:
         print(f"Backed up previous data to {backup_path}")
-        _record_undo(sqlite_store.data_dir, sqlite_store.path, backup_path)
+        _record_undo(sqlite_store.data_dir, [(sqlite_store.path, backup_path)])
     return 0
 
 
@@ -776,6 +786,7 @@ def cmd_archive(store: TaskStore, args: argparse.Namespace) -> int:
     backup_path = _backup_file(store.path)
 
     archive_path = store.data_dir / _ARCHIVE_FILE
+    archive_backup_path = _backup_file(archive_path)
     archived: list[dict] = []
     if archive_path.exists():
         with archive_path.open("r", encoding="utf-8") as f:
@@ -792,7 +803,10 @@ def cmd_archive(store: TaskStore, args: argparse.Namespace) -> int:
     print(f"Archived {len(to_archive)} task(s) to {archive_path}")
     if backup_path is not None:
         print(f"Backed up previous data to {backup_path}")
-        _record_undo(store.data_dir, store.path, backup_path)
+        _record_undo(
+            store.data_dir,
+            [(store.path, backup_path), (archive_path, archive_backup_path)],
+        )
     return 0
 
 
@@ -802,16 +816,27 @@ def cmd_undo(_store: None, args: argparse.Namespace) -> int:
     if not log_path.exists():
         print("Nothing to undo.", file=sys.stderr)
         return 1
-    entry = json.loads(log_path.read_text(encoding="utf-8"))
-    target = Path(entry["target"])
-    backup = Path(entry["backup"])
+    log = json.loads(log_path.read_text(encoding="utf-8"))
+    entries = [
+        (Path(e["target"]), Path(e["backup"]) if e["backup"] else None)
+        for e in log["entries"]
+    ]
     log_path.unlink()
-    if not backup.exists():
-        print("Nothing to undo.", file=sys.stderr)
-        return 1
-    shutil.copy2(backup, target)
-    backup.unlink()
-    print(f"Restored {target} from backup, undoing the last destructive action.")
+
+    for _target, backup in entries:
+        if backup is not None and not backup.exists():
+            print("Nothing to undo.", file=sys.stderr)
+            return 1
+
+    for target, backup in entries:
+        if backup is not None:
+            shutil.copy2(backup, target)
+            backup.unlink()
+        elif target.exists():
+            target.unlink()
+
+    targets = ", ".join(str(target) for target, _backup in entries)
+    print(f"Restored {targets}, undoing the last destructive action.")
     return 0
 
 
