@@ -11,6 +11,7 @@ from onepact.storage import (
     _default_data_dir,
     check_in_habit,
     complete_task,
+    is_due_today,
     is_overdue,
     priority_rank,
 )
@@ -73,6 +74,38 @@ def test_is_overdue_false_when_done():
 def test_is_overdue_false_when_no_due_date():
     task = Task(id=1, title="a")
     assert is_overdue(task, today="2026-01-02") is False
+
+
+def test_is_due_today_true_for_undone_task_due_today():
+    task = Task(id=1, title="a", due="2026-01-02")
+    assert is_due_today(task, today="2026-01-02") is True
+
+
+def test_is_due_today_false_for_past_due_date():
+    task = Task(id=1, title="a", due="2026-01-01")
+    assert is_due_today(task, today="2026-01-02") is False
+
+
+def test_is_due_today_false_for_future_due_date():
+    task = Task(id=1, title="a", due="2026-01-05")
+    assert is_due_today(task, today="2026-01-02") is False
+
+
+def test_is_due_today_false_when_done():
+    task = Task(id=1, title="a", due="2026-01-02", done=True)
+    assert is_due_today(task, today="2026-01-02") is False
+
+
+def test_is_due_today_false_when_no_due_date():
+    task = Task(id=1, title="a")
+    assert is_due_today(task, today="2026-01-02") is False
+
+
+def test_overdue_and_due_today_are_mutually_exclusive():
+    overdue = Task(id=1, title="a", due="2026-01-01")
+    due_today = Task(id=2, title="b", due="2026-01-02")
+    assert is_overdue(overdue, today="2026-01-02") != is_due_today(overdue, today="2026-01-02")
+    assert is_overdue(due_today, today="2026-01-02") != is_due_today(due_today, today="2026-01-02")
 
 
 def test_task_tags_defaults_to_empty_list():

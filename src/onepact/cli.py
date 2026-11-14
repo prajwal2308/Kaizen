@@ -30,6 +30,7 @@ from onepact.storage import (
     TaskStore,
     check_in_habit,
     complete_task,
+    is_due_today,
     is_overdue,
     priority_rank,
 )
@@ -166,6 +167,8 @@ def _format_task_line(t: Task, today: str, color: bool = False) -> str:
         line += f" [due {t.due}]"
         if is_overdue(t, today):
             line += colorize(" OVERDUE", "red", "bold", enabled=color)
+        elif is_due_today(t, today):
+            line += colorize(" DUE TODAY", "cyan", "bold", enabled=color)
     if t.tags:
         line += colorize(f" [tags: {', '.join(t.tags)}]", "cyan", enabled=color)
     if t.repeat:
@@ -181,7 +184,7 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
         tasks = [t for t in tasks if args.tag in t.tags]
     if args.priority:
         tasks = [t for t in tasks if t.priority == args.priority]
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = _today().isoformat()
     if args.overdue:
         tasks = [t for t in tasks if is_overdue(t, today)]
     if not tasks:
@@ -209,7 +212,7 @@ def cmd_find(store: TaskStore, args: argparse.Namespace) -> int:
         print("No matching tasks.")
         return 0
     matches.sort(key=lambda t: (priority_rank(t.priority), t.id))
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = _today().isoformat()
     color = should_color()
     for t in matches:
         print(_format_task_line(t, today, color))
@@ -236,7 +239,7 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     for t in tasks:
         if t.id == args.id:
-            today = datetime.now(timezone.utc).date().isoformat()
+            today = _today().isoformat()
             color = should_color()
             print(f"#{t.id} {t.title}")
             status = "done" if t.done else "pending"
@@ -245,6 +248,8 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
             due_line = f"Due: {t.due}" if t.due else "Due: (none)"
             if t.due and is_overdue(t, today):
                 due_line += colorize(" (OVERDUE)", "red", "bold", enabled=color)
+            elif t.due and is_due_today(t, today):
+                due_line += colorize(" (DUE TODAY)", "cyan", "bold", enabled=color)
             print(due_line)
             print(f"Tags: {', '.join(t.tags) if t.tags else '(none)'}")
             print(f"Repeat: {t.repeat}" if t.repeat else "Repeat: (none)")
@@ -525,6 +530,18 @@ def cmd_review(_store: None, args: argparse.Namespace) -> int:
             print(f"  {_format_task_line(t, today, color)}")
     else:
         print("  No overdue tasks.")
+
+    due_today = sorted(
+        (t for t in tasks if is_due_today(t, today)),
+        key=lambda t: (priority_rank(t.priority), t.id),
+    )
+    print()
+    print("Due today:")
+    if due_today:
+        for t in due_today:
+            print(f"  {_format_task_line(t, today, color)}")
+    else:
+        print("  No tasks due today.")
 
     habits = HabitStore().load()
     print()

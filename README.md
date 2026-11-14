@@ -62,7 +62,10 @@ date first with undated tasks last, and `created` shows the oldest task
 first.
 
 `list --overdue` is shorthand for showing only past-due, unfinished
-tasks — the same ones flagged `OVERDUE` in a regular `list`.
+tasks — the same ones flagged `OVERDUE` in a regular `list`. A task due
+today but not yet overdue gets its own `DUE TODAY` marker instead, in
+`list`, `find`, and `show` — distinct from a task due later, which
+shows its due date with no marker at all.
 
 `tags` lists every tag currently in use, alphabetically, each with a
 count of how many tasks carry it — useful for finding out what tags
@@ -238,7 +241,7 @@ backend = "json"
 ## Color
 
 `list`, `find`, `show`, `journal list`, and `journal search` colorize
-priorities, `OVERDUE`, tags, `repeat`, and linked-task markers when
+priorities, `OVERDUE`/`DUE TODAY`, tags, `repeat`, and linked-task markers when
 standard output is a real terminal. Color is off automatically when
 output is piped or redirected, and can be turned off on a terminal too
 by setting the `NO_COLOR` environment variable (to any value, including
@@ -329,18 +332,19 @@ onepact review
 onepact review --since yesterday
 ```
 
-One view for the start of your day: your overdue, unfinished tasks
-(sorted the same way `list` sorts them), every habit with its current
-streak and whether you've checked in on it today, and your single most
-recent journal entry. Each section prints its own message when it has
-nothing to show, so `review` always has the same shape whether you're
-just getting started or have months of data.
+One view for the start of your day: your overdue, unfinished tasks,
+then separately, the tasks due today but not yet overdue (both sorted
+the same way `list` sorts them), every habit with its current streak
+and whether you've checked in on it today, and your single most recent
+journal entry. Each section prints its own message when it has nothing
+to show, so `review` always has the same shape whether you're just
+getting started or have months of data.
 
 `--since yesterday` is for catching up after a day away: it broadens
 the journal section from just the single most recent entry to every
-entry from yesterday or today, most recent first. The overdue-tasks
-and habits sections don't change — overdue tasks and today's streaks
-already show everything relevant regardless of how long it's been.
+entry from yesterday or today, most recent first. The overdue/due-today
+tasks and habits sections don't change — they already show everything
+relevant regardless of how long it's been.
 
 ## Stats
 
@@ -387,10 +391,10 @@ command), handing the terminal back to the dashboard once you save
 and close it.
 
 Tasks and habits are colored the same way the plain commands already
-color them — priority (red/yellow/blue), overdue in red, a habit's
-streak in magenta, green once checked in today — so the dashboard
-looks like the same tool rather than introducing its own palette.
-Respects `NO_COLOR` the same way the rest of `onepact` does.
+color them — priority (red/yellow/blue), overdue in red, due today in
+cyan, a habit's streak in magenta, green once checked in today — so
+the dashboard looks like the same tool rather than introducing its own
+palette. Respects `NO_COLOR` the same way the rest of `onepact` does.
 
 If your terminal can't run `ui` at all (no real terminal attached,
 e.g. piped output), it prints a one-line error and exits instead of

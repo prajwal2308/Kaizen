@@ -40,6 +40,12 @@ def test_task_lines_flags_overdue():
     assert lines == ["#1 (med) late task [due 2020-01-01] OVERDUE"]
 
 
+def test_task_lines_flags_due_today():
+    tasks = [Task(id=1, title="today task", due="2026-01-10")]
+    lines = ui.task_lines(tasks, "2026-01-10")
+    assert lines == ["#1 (med) today task [due 2026-01-10] DUE TODAY"]
+
+
 def test_task_line_color_matches_priority():
     assert ui.task_line_color(Task(id=1, title="a", priority="high"), "2026-01-10") == "red"
     assert ui.task_line_color(Task(id=1, title="a", priority="med"), "2026-01-10") == "yellow"
@@ -49,6 +55,11 @@ def test_task_line_color_matches_priority():
 def test_task_line_color_overdue_overrides_priority():
     task = Task(id=1, title="a", priority="low", due="2020-01-01")
     assert ui.task_line_color(task, "2026-01-10") == "red"
+
+
+def test_task_line_color_due_today_overrides_priority():
+    task = Task(id=1, title="a", priority="low", due="2026-01-10")
+    assert ui.task_line_color(task, "2026-01-10") == "cyan"
 
 
 def test_habit_line_color_magenta_when_not_checked_in_today():

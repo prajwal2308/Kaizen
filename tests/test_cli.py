@@ -860,6 +860,38 @@ def test_list_does_not_mark_done_task_overdue(capsys):
     assert "OVERDUE" not in out
 
 
+def test_list_marks_task_due_today(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport", "--due", "today"])
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "[due 2026-01-10] DUE TODAY" in out
+    assert "OVERDUE" not in out
+
+
+def test_list_does_not_mark_future_due_task_due_today(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport", "--due", "tomorrow"])
+    capsys.readouterr()
+
+    main(["list"])
+    out = capsys.readouterr().out
+    assert "DUE TODAY" not in out
+
+
+def test_list_does_not_mark_done_task_due_today(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport", "--due", "today"])
+    main(["done", "1"])
+    capsys.readouterr()
+
+    main(["list", "--all"])
+    out = capsys.readouterr().out
+    assert "DUE TODAY" not in out
+
+
 def test_add_invalid_due_date_errors():
     with pytest.raises(SystemExit):
         main(["add", "bad date", "--due", "not-a-date"])
@@ -935,6 +967,16 @@ def test_show_marks_overdue_task(capsys):
     main(["show", "1"])
     out = capsys.readouterr().out
     assert "Due: 2000-01-01 (OVERDUE)" in out
+
+
+def test_show_marks_task_due_today(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "renew passport", "--due", "today"])
+    capsys.readouterr()
+
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Due: 2026-01-10 (DUE TODAY)" in out
 
 
 def test_show_task_without_due_or_tags(capsys):
@@ -2316,6 +2358,8 @@ def test_review_shows_empty_states_for_everything(capsys):
     out = capsys.readouterr().out
     assert "Overdue tasks:" in out
     assert "No overdue tasks." in out
+    assert "Due today:" in out
+    assert "No tasks due today." in out
     assert "Today's habits:" in out
     assert "No habits." in out
     assert "Last journal entry:" in out
@@ -2379,6 +2423,36 @@ def test_review_sorts_overdue_tasks_by_priority(capsys):
     main(["review"])
     out = capsys.readouterr().out
     assert out.index("high one") < out.index("low one")
+
+
+def test_review_shows_only_tasks_due_today(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "due today", "--due", "today"])
+    main(["add", "overdue", "--due", "2020-01-01"])
+    main(["add", "due tomorrow", "--due", "tomorrow"])
+    main(["add", "due today but done", "--due", "today"])
+    main(["done", "4"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    due_today_section = out.split("Due today:")[1].split("Today's habits:")[0]
+    assert "due today" in due_today_section
+    assert "overdue" not in due_today_section
+    assert "due tomorrow" not in due_today_section
+    assert "due today but done" not in due_today_section
+
+
+def test_review_sorts_due_today_tasks_by_priority(monkeypatch, capsys):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 1, 10))
+    main(["add", "low one", "--due", "today", "--priority", "low"])
+    main(["add", "high one", "--due", "today", "--priority", "high"])
+    capsys.readouterr()
+
+    main(["review"])
+    out = capsys.readouterr().out
+    due_today_section = out.split("Due today:")[1].split("Today's habits:")[0]
+    assert due_today_section.index("high one") < due_today_section.index("low one")
 
 
 def test_review_shows_all_habits_with_todays_check_in_status(capsys):

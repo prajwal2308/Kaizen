@@ -24,6 +24,7 @@ from onepact.storage import (
     Task,
     check_in_habit,
     complete_task,
+    is_due_today,
     is_overdue,
     priority_rank,
 )
@@ -39,10 +40,14 @@ _PRIORITY_COLOR = {"high": "red", "med": "yellow", "low": "blue"}
 def task_line_color(t: Task, today: str) -> str:
     """The same palette `cli.py`'s plain-text output uses for a task
     line: red for an overdue task (overriding its priority color, since
-    overdue is the more urgent signal), otherwise its priority's color.
+    overdue is the more urgent signal), cyan for one due today (still
+    more urgent than priority, but a task is never both), otherwise its
+    priority's color.
     """
     if is_overdue(t, today):
         return "red"
+    if is_due_today(t, today):
+        return "cyan"
     return _PRIORITY_COLOR[t.priority]
 
 
@@ -75,6 +80,8 @@ def task_lines(tasks: list[Task], today: str) -> list[str]:
             line += f" [due {t.due}]"
             if is_overdue(t, today):
                 line += " OVERDUE"
+            elif is_due_today(t, today):
+                line += " DUE TODAY"
         lines.append(line)
     return lines
 

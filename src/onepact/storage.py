@@ -74,6 +74,14 @@ def is_overdue(task: Task, today: str) -> bool:
     return task.due is not None and not task.done and task.due < today
 
 
+def is_due_today(task: Task, today: str) -> bool:
+    """A task is due today if its due date is today and it isn't done yet.
+    Never true for a task `is_overdue` already covers (that needs `due <
+    today`, this needs `due == today`), so a task is at most one of the two.
+    """
+    return task.due == today and not task.done
+
+
 _REPEAT_DELTA = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}
 
 
