@@ -141,7 +141,7 @@ features that grew independently across earlier phases:
 - [x] 78. `ONEPACT_HOME` environment variable overrides the default `~/.onepact` data directory (falls back to the current default when unset) -- useful for separate profiles or testing without a flag on every command.
 - [x] 79. Fix `undo`'s known gap with multi-file destructive operations (flagged in the CHANGELOG when `archive` shipped): extend the undo log to record every file a destructive operation touched, not just one, so `onepact undo` right after an `archive` run actually reverses the `archive.json` append too, not just restoring the active task list.
 - [x] 80. `list`/`review`/`onepact ui`'s Tasks panel distinguish a task due today from one merely not-yet-overdue, with its own marker -- today's work is more actionable than next week's and currently looks identical to it.
-- [ ] 81. `export`/`import` extended to cover journal entries and habits, not just tasks -- the existing data-safety story (Phase 4) only covers tasks today, leaving `journal.json`/`habits.json` without an equivalent one-shot backup/restore path.
+- [x] 81. `export`/`import` extended to cover journal entries and habits, not just tasks -- the existing data-safety story (Phase 4) only covers tasks today, leaving `journal.json`/`habits.json` without an equivalent one-shot backup/restore path.
 - [ ] 82. README documentation for items 76-81.
 
 ---

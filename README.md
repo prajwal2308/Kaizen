@@ -122,6 +122,11 @@ onepact export --format csv -o tasks.csv
 onepact import backup.json
 onepact import tasks.csv
 onepact import some-file --format json
+
+onepact export --what journal --format json -o journal-backup.json
+onepact export --what habits --format json -o habits-backup.json
+onepact import journal-backup.json --what journal
+onepact import habits-backup.json --what habits
 ```
 
 `export` prints every task from whichever backend is currently active as
@@ -141,6 +146,17 @@ inferred from the file's `.json`/`.csv` extension, or set explicitly with
 gets a fresh one from the active store, so importing never overwrites or
 collides with tasks you already have; run it against an empty store (or
 a fresh backend) if you want an exact restore, including ids.
+
+`--what {tasks,journal,habits}` on both `export` and `import` picks what
+to back up — it defaults to `tasks`, so every command above keeps working
+unchanged. `--what journal` covers `journal.json` (CSV header
+`id,body,created_at,task_id,tags`); `--what habits` covers `habits.json`
+(CSV header `name,frequency,streak,created_at,last_checked`). Journal
+entries behave like tasks on import — each gets a fresh `id`, so nothing
+is ever overwritten. Habits are identified by name, not an id, so
+importing a habit whose name you already have skips it (reported on
+stderr) rather than overwriting or duplicating it; everything else in
+the file still imports normally.
 
 ## Archiving
 

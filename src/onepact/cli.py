@@ -891,15 +891,103 @@ def _tasks_to_csv(tasks: list[Task]) -> str:
     return buf.getvalue()
 
 
-def cmd_export(store: TaskStore, args: argparse.Namespace) -> int:
-    tasks = store.load()
-    if args.format == "json":
-        text = json.dumps([t.to_dict() for t in tasks], indent=2)
+_ENTRY_CSV_FIELDS = ("id", "body", "created_at", "task_id", "tags")
+
+
+def _entries_to_csv(entries: list[Entry]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(_ENTRY_CSV_FIELDS)
+    for e in entries:
+        writer.writerow(
+            [
+                e.id,
+                e.body,
+                e.created_at,
+                e.task_id if e.task_id is not None else "",
+                ";".join(e.tags),
+            ]
+        )
+    return buf.getvalue()
+
+
+def _entries_from_csv(text: str) -> list[Entry]:
+    reader = csv.DictReader(io.StringIO(text))
+    entries = []
+    for row in reader:
+        tags = [tag for tag in (row.get("tags") or "").split(";") if tag]
+        task_id_raw = row.get("task_id") or ""
+        entries.append(
+            Entry(
+                id=0,
+                body=row.get("body", ""),
+                created_at=row.get("created_at") or "",
+                task_id=int(task_id_raw) if task_id_raw else None,
+                tags=tags,
+            )
+        )
+    return entries
+
+
+_HABIT_CSV_FIELDS = ("name", "frequency", "streak", "created_at", "last_checked")
+
+
+def _habits_to_csv(habits: list[Habit]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(_HABIT_CSV_FIELDS)
+    for h in habits:
+        writer.writerow([h.name, h.frequency, h.streak, h.created_at, h.last_checked or ""])
+    return buf.getvalue()
+
+
+def _habits_from_csv(text: str) -> list[Habit]:
+    reader = csv.DictReader(io.StringIO(text))
+    habits = []
+    for row in reader:
+        streak_raw = row.get("streak") or "0"
+        habits.append(
+            Habit(
+                name=row.get("name", ""),
+                frequency=row.get("frequency") or "daily",
+                streak=int(streak_raw) if streak_raw else 0,
+                created_at=row.get("created_at") or "",
+                last_checked=row.get("last_checked") or None,
+            )
+        )
+    return habits
+
+
+_EXPORT_LABELS = {"tasks": "task(s)", "journal": "journal entry(s)", "habits": "habit(s)"}
+
+
+def cmd_export(_store: None, args: argparse.Namespace) -> int:
+    if args.what == "journal":
+        entries = JournalStore().load()
+        if args.format == "json":
+            text = json.dumps([e.to_dict() for e in entries], indent=2)
+        else:
+            text = _entries_to_csv(entries).rstrip("\n")
+        count = len(entries)
+    elif args.what == "habits":
+        habits = HabitStore().load()
+        if args.format == "json":
+            text = json.dumps([h.to_dict() for h in habits], indent=2)
+        else:
+            text = _habits_to_csv(habits).rstrip("\n")
+        count = len(habits)
     else:
-        text = _tasks_to_csv(tasks).rstrip("\n")
+        tasks = _get_task_store().load()
+        if args.format == "json":
+            text = json.dumps([t.to_dict() for t in tasks], indent=2)
+        else:
+            text = _tasks_to_csv(tasks).rstrip("\n")
+        count = len(tasks)
+
+    label = _EXPORT_LABELS[args.what]
     if args.output:
         Path(args.output).write_text(text + "\n", encoding="utf-8")
-        print(f"Exported {len(tasks)} task(s) to {args.output}")
+        print(f"Exported {count} {label} to {args.output}")
     else:
         print(text)
     return 0
@@ -935,7 +1023,31 @@ def _tasks_from_csv(text: str) -> list[Task]:
     return tasks
 
 
-def cmd_import(store: TaskStore, args: argparse.Namespace) -> int:
+def _parse_imported_tasks(path: Path, fmt: str) -> list[Task]:
+    if fmt == "json":
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        return [Task.from_dict(item) for item in raw]
+    return _tasks_from_csv(path.read_text(encoding="utf-8"))
+
+
+def _parse_imported_entries(path: Path, fmt: str) -> list[Entry]:
+    if fmt == "json":
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        return [Entry.from_dict(item) for item in raw]
+    return _entries_from_csv(path.read_text(encoding="utf-8"))
+
+
+def _parse_imported_habits(path: Path, fmt: str) -> list[Habit]:
+    if fmt == "json":
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        return [Habit.from_dict(item) for item in raw]
+    return _habits_from_csv(path.read_text(encoding="utf-8"))
+
+
+_IMPORT_PARSE_ERRORS = (OSError, json.JSONDecodeError, csv.Error, KeyError, TypeError)
+
+
+def cmd_import(_store: None, args: argparse.Namespace) -> int:
     path = Path(args.file)
     if not path.exists():
         print(f"No such file: {path}", file=sys.stderr)
@@ -947,22 +1059,55 @@ def cmd_import(store: TaskStore, args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+
+    if args.what == "journal":
+        try:
+            imported_entries = _parse_imported_entries(path, fmt)
+        except _IMPORT_PARSE_ERRORS as exc:
+            print(f"Could not parse {path} as {fmt}: {exc}", file=sys.stderr)
+            return 1
+        store = JournalStore()
+        entries = store.load()
+        for e in imported_entries:
+            e.id = store.next_id(entries)
+            entries.append(e)
+        store.save(entries)
+        print(f"Imported {len(imported_entries)} journal entry(s) from {path}")
+        return 0
+
+    if args.what == "habits":
+        try:
+            imported_habits = _parse_imported_habits(path, fmt)
+        except _IMPORT_PARSE_ERRORS as exc:
+            print(f"Could not parse {path} as {fmt}: {exc}", file=sys.stderr)
+            return 1
+        habit_store = HabitStore()
+        habits = habit_store.load()
+        existing_names = {h.name for h in habits}
+        added = [h for h in imported_habits if h.name not in existing_names]
+        skipped = len(imported_habits) - len(added)
+        habits.extend(added)
+        habit_store.save(habits)
+        print(f"Imported {len(added)} habit(s) from {path}")
+        if skipped:
+            print(
+                f"Skipped {skipped} habit(s) with a name that already exists",
+                file=sys.stderr,
+            )
+        return 0
+
     try:
-        if fmt == "json":
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            imported = [Task.from_dict(item) for item in raw]
-        else:
-            imported = _tasks_from_csv(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, csv.Error, KeyError, TypeError) as exc:
+        imported_tasks = _parse_imported_tasks(path, fmt)
+    except _IMPORT_PARSE_ERRORS as exc:
         print(f"Could not parse {path} as {fmt}: {exc}", file=sys.stderr)
         return 1
-
-    tasks = store.load()
-    for t in imported:
-        t.id = store.next_id(tasks)
+    task_store = _get_task_store()
+    tasks = task_store.load()
+    for t in imported_tasks:
+        t.id = task_store.next_id(tasks)
         tasks.append(t)
-    store.save(tasks)
-    print(f"Imported {len(imported)} task(s) from {path}")
+    task_store.save(tasks)
+    print(f"Imported {len(imported_tasks)} task(s) from {path}")
     return 0
 
 
@@ -1222,10 +1367,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_export = sub.add_parser(
         "export",
-        help="Export tasks as JSON or CSV",
+        help="Export tasks, journal entries, or habits as JSON or CSV",
         epilog=_examples(
             "onepact export --format json",
             "onepact export --format csv --output tasks.csv",
+            "onepact export --what journal --format json --output journal.json",
+            "onepact export --what habits --format json --output habits.json",
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1241,12 +1388,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Write to this file instead of stdout",
     )
-    p_export.set_defaults(func=cmd_export)
+    p_export.add_argument(
+        "--what",
+        choices=("tasks", "journal", "habits"),
+        default="tasks",
+        help="What to export (default: tasks)",
+    )
+    p_export.set_defaults(func=cmd_export, store_type="none")
 
     p_import = sub.add_parser(
         "import",
-        help="Import tasks from a JSON or CSV export",
-        epilog=_examples("onepact import backup.json", "onepact import tasks.csv"),
+        help="Import tasks, journal entries, or habits from a JSON or CSV export",
+        epilog=_examples(
+            "onepact import backup.json",
+            "onepact import tasks.csv",
+            "onepact import journal.json --what journal",
+            "onepact import habits.json --what habits",
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_import.add_argument("file", help="Path to a file produced by `export`")
@@ -1256,7 +1414,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Import format (default: inferred from the file extension)",
     )
-    p_import.set_defaults(func=cmd_import)
+    p_import.add_argument(
+        "--what",
+        choices=("tasks", "journal", "habits"),
+        default="tasks",
+        help="What to import (default: tasks)",
+    )
+    p_import.set_defaults(func=cmd_import, store_type="none")
 
     p_journal = sub.add_parser("journal", help="Manage journal entries")
     journal_sub = p_journal.add_subparsers(dest="journal_command", required=True)

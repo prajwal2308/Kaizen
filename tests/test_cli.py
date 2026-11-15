@@ -660,6 +660,184 @@ def test_export_import_round_trip_via_sqlite_backend(capsys, tmp_path, monkeypat
         assert got.created_at == orig.created_at
 
 
+def test_export_what_journal_json_to_stdout(capsys):
+    main(["add", "placeholder"])
+    main(["journal", "hit the gym", "--tag", "health"])
+    main(["journal", "finished the report", "--task", "1"])
+    capsys.readouterr()
+
+    assert main(["export", "--what", "journal", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    entries = json.loads(out)
+    assert [e["body"] for e in entries] == ["hit the gym", "finished the report"]
+    assert entries[0]["tags"] == ["health"]
+    assert entries[1]["task_id"] == 1
+
+
+def test_export_what_journal_csv_to_stdout(capsys):
+    main(["journal", "hit the gym", "--tag", "health"])
+    capsys.readouterr()
+
+    assert main(["export", "--what", "journal", "--format", "csv"]) == 0
+    out = capsys.readouterr().out
+    rows = list(csv.reader(io.StringIO(out)))
+    assert rows[0] == ["id", "body", "created_at", "task_id", "tags"]
+    assert rows[1][1] == "hit the gym"
+    assert rows[1][4] == "health"
+
+
+def test_export_what_habits_json_to_stdout(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    assert main(["export", "--what", "habits", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    habits = json.loads(out)
+    assert habits[0]["name"] == "exercise"
+    assert habits[0]["streak"] == 1
+
+
+def test_export_what_habits_csv_to_stdout(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["export", "--what", "habits", "--format", "csv"]) == 0
+    out = capsys.readouterr().out
+    rows = list(csv.reader(io.StringIO(out)))
+    assert rows[0] == ["name", "frequency", "streak", "created_at", "last_checked"]
+    assert rows[1][0:3] == ["exercise", "daily", "0"]
+
+
+def test_export_what_defaults_to_tasks(capsys):
+    main(["add", "a task"])
+    capsys.readouterr()
+
+    assert main(["export", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    tasks = json.loads(out)
+    assert [t["title"] for t in tasks] == ["a task"]
+
+
+def test_import_journal_round_trips_with_export(capsys, tmp_path):
+    main(["add", "placeholder"])
+    main(["journal", "hit the gym", "--tag", "health"])
+    main(["journal", "finished the report", "--task", "1"])
+    capsys.readouterr()
+
+    export_file = tmp_path / "journal_export.json"
+    main(["export", "--what", "journal", "--format", "json", "--output", str(export_file)])
+    original = JournalStore(data_dir=tmp_path).load()
+
+    JournalStore(data_dir=tmp_path).save([])
+    capsys.readouterr()
+
+    assert main(["import", str(export_file), "--what", "journal"]) == 0
+    out = capsys.readouterr().out
+    assert f"Imported 2 journal entry(s) from {export_file}" in out
+
+    imported = JournalStore(data_dir=tmp_path).load()
+    assert len(imported) == 2
+    for orig, got in zip(original, imported):
+        assert got.body == orig.body
+        assert got.tags == orig.tags
+        assert got.task_id == orig.task_id
+        assert got.created_at == orig.created_at
+
+
+def test_import_journal_csv_round_trips_with_export(tmp_path):
+    main(["journal", "hit the gym", "--tag", "health"])
+    export_file = tmp_path / "journal_export.csv"
+    main(["export", "--what", "journal", "--format", "csv", "--output", str(export_file)])
+    original = JournalStore(data_dir=tmp_path).load()
+
+    JournalStore(data_dir=tmp_path).save([])
+
+    assert main(["import", str(export_file), "--what", "journal"]) == 0
+    imported = JournalStore(data_dir=tmp_path).load()
+    assert len(imported) == 1
+    assert imported[0].body == original[0].body
+    assert imported[0].tags == original[0].tags
+
+
+def test_import_journal_assigns_new_ids(tmp_path):
+    main(["journal", "already here"])
+    export_file = tmp_path / "journal_export.json"
+    main(["export", "--what", "journal", "--format", "json", "--output", str(export_file)])
+
+    main(["import", str(export_file), "--what", "journal"])
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert [e.body for e in entries] == ["already here", "already here"]
+    assert [e.id for e in entries] == [1, 2]
+
+
+def test_import_habits_round_trips_with_export(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    export_file = tmp_path / "habits_export.json"
+    main(["export", "--what", "habits", "--format", "json", "--output", str(export_file)])
+
+    HabitStore(data_dir=tmp_path).save([])
+    capsys.readouterr()
+
+    assert main(["import", str(export_file), "--what", "habits"]) == 0
+    out = capsys.readouterr().out
+    assert f"Imported 1 habit(s) from {export_file}" in out
+
+    imported = HabitStore(data_dir=tmp_path).load()
+    assert len(imported) == 1
+    assert imported[0].name == "exercise"
+    assert imported[0].streak == 1
+
+
+def test_import_habits_csv_round_trips_with_export(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    export_file = tmp_path / "habits_export.csv"
+    main(["export", "--what", "habits", "--format", "csv", "--output", str(export_file)])
+
+    HabitStore(data_dir=tmp_path).save([])
+
+    assert main(["import", str(export_file), "--what", "habits"]) == 0
+    imported = HabitStore(data_dir=tmp_path).load()
+    assert len(imported) == 1
+    assert imported[0].name == "exercise"
+    assert imported[0].frequency == "daily"
+
+
+def test_import_habits_skips_names_that_already_exist(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    export_file = tmp_path / "habits_export.json"
+    main(["export", "--what", "habits", "--format", "json", "--output", str(export_file)])
+    capsys.readouterr()
+
+    assert main(["import", str(export_file), "--what", "habits"]) == 0
+    captured = capsys.readouterr()
+    assert "Imported 0 habit(s)" in captured.out
+    assert "Skipped 1 habit(s) with a name that already exists" in captured.err
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert len(habits) == 1
+
+
+def test_import_journal_malformed_json_errors(capsys, tmp_path):
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("not json")
+    assert main(["import", str(bad_file), "--what", "journal"]) == 1
+    err = capsys.readouterr().err
+    assert f"Could not parse {bad_file} as json" in err
+
+
+def test_import_habits_malformed_json_errors(capsys, tmp_path):
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("not json")
+    assert main(["import", str(bad_file), "--what", "habits"]) == 1
+    err = capsys.readouterr().err
+    assert f"Could not parse {bad_file} as json" in err
+
+
 def test_add_with_priority_shown_in_list(capsys):
     main(["add", "fix the outage", "--priority", "high"])
     main(["list"])
