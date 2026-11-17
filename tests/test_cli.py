@@ -1276,6 +1276,126 @@ def test_edit_invalid_due_date_errors():
         main(["edit", "1", "renew passport", "--due", "not-a-date"])
 
 
+def test_edit_without_title_leaves_title_unchanged(capsys):
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    assert main(["edit", "1", "--priority", "high"]) == 0
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "#1 renew passport" in out
+    assert "Priority: high" in out
+
+
+def test_edit_priority(capsys):
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    main(["edit", "1", "--priority", "high"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Priority: high" in out
+
+
+def test_edit_rejects_invalid_priority():
+    main(["add", "renew passport"])
+    with pytest.raises(SystemExit):
+        main(["edit", "1", "--priority", "urgent"])
+
+
+def test_edit_tags_replaces_existing_tags(capsys):
+    main(["add", "renew passport", "--tag", "admin"])
+    capsys.readouterr()
+
+    main(["edit", "1", "--tag", "work", "--tag", "urgent"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Tags: work, urgent" in out
+
+
+def test_edit_tags_dedupes_repeated_tags(capsys):
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    main(["edit", "1", "--tag", "work", "--tag", "work"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Tags: work" in out
+
+
+def test_edit_without_tag_leaves_tags_unchanged(capsys):
+    main(["add", "renew passport", "--tag", "admin"])
+    capsys.readouterr()
+
+    main(["edit", "1", "new title"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Tags: admin" in out
+
+
+def test_edit_repeat(capsys):
+    main(["add", "take out the trash"])
+    capsys.readouterr()
+
+    main(["edit", "1", "--repeat", "weekly"])
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "Repeat: weekly" in out
+
+
+def test_edit_rejects_invalid_repeat():
+    main(["add", "take out the trash"])
+    with pytest.raises(SystemExit):
+        main(["edit", "1", "--repeat", "monthly"])
+
+
+def test_edit_with_no_title_and_no_flags_errors(capsys):
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    assert main(["edit", "1"]) == 1
+    err = capsys.readouterr().err
+    assert "Nothing to edit" in err
+
+
+def test_edit_with_no_title_and_no_flags_does_not_touch_the_task(capsys, tmp_path):
+    main(["add", "renew passport", "--priority", "high"])
+    capsys.readouterr()
+
+    main(["edit", "1"])
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[0].title == "renew passport"
+    assert tasks[0].priority == "high"
+
+
+def test_edit_combines_multiple_fields_in_one_call(capsys):
+    main(["add", "renew passport"])
+    capsys.readouterr()
+
+    main(
+        [
+            "edit",
+            "1",
+            "renew passport urgently",
+            "--priority",
+            "high",
+            "--due",
+            "2099-01-01",
+            "--tag",
+            "admin",
+            "--repeat",
+            "weekly",
+        ]
+    )
+    main(["show", "1"])
+    out = capsys.readouterr().out
+    assert "#1 renew passport urgently" in out
+    assert "Priority: high" in out
+    assert "Due: 2099-01-01" in out
+    assert "Tags: admin" in out
+    assert "Repeat: weekly" in out
+
+
 def test_rm_removes_task(capsys):
     main(["add", "temp task"])
     assert main(["rm", "1"]) == 0

@@ -43,6 +43,9 @@ onepact find passport
 onepact show 1
 onepact edit 1 "write and send the weekly review"
 onepact edit 1 "write and send the weekly review" --due today
+onepact edit 1 --priority high
+onepact edit 1 --tag work --tag urgent
+onepact edit 1 --repeat weekly
 onepact done 1
 onepact done 5
 onepact list --all
@@ -76,6 +79,15 @@ it excludes completed tasks unless you pass `--all`.
 date, on both `add` and `edit` — resolved to a real `YYYY-MM-DD` the
 moment the command runs, not re-evaluated later. `edit`'s `--due` is
 optional; leaving it out keeps the task's existing due date.
+
+`edit <id>`'s `title` is optional too, and so is every flag
+(`--due`/`--priority`/`--tag`/`--repeat`) — each one changes only the
+field it names, and anything you don't pass is left exactly as it was.
+`--tag` on `edit` replaces the task's tags with the ones you give it
+(not add to them); pass it more than once to set several at once, the
+same way `add --tag` does. Calling `edit <id>` with no title and no
+flags at all is rejected rather than treated as a no-op save, since
+there'd be nothing to change.
 
 `--repeat {daily,weekly}` on `add` marks a task as recurring, shown as
 `[repeat: daily]`/`[repeat: weekly]` in `list` and `find`, and as a

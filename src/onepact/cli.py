@@ -279,12 +279,28 @@ def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
 
 
 def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
+    if (
+        args.title is None
+        and args.due is None
+        and args.priority is None
+        and args.tags is None
+        and args.repeat is None
+    ):
+        print("Nothing to edit: pass a new title or at least one flag.", file=sys.stderr)
+        return 1
     tasks = store.load()
     for t in tasks:
         if t.id == args.id:
-            t.title = args.title
+            if args.title is not None:
+                t.title = args.title
             if args.due is not None:
                 t.due = _resolve_due(args.due)
+            if args.priority is not None:
+                t.priority = args.priority
+            if args.tags is not None:
+                t.tags = list(dict.fromkeys(args.tags))
+            if args.repeat is not None:
+                t.repeat = args.repeat
             store.save(tasks)
             print(f"Edited #{t.id}: {t.title}")
             return 0
@@ -1278,20 +1294,44 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_edit = sub.add_parser(
         "edit",
-        help="Edit a task's title and/or due date",
+        help="Edit a task's title, due date, priority, tags, or repeat setting",
         epilog=_examples(
             'onepact edit 1 "write and send the weekly review"',
             'onepact edit 1 "write the weekly review" --due tomorrow',
+            "onepact edit 1 --priority high",
+            "onepact edit 1 --tag work --tag urgent",
+            "onepact edit 1 --repeat weekly",
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_edit.add_argument("id", type=int, help="Task id")
-    p_edit.add_argument("title", help="New task title")
+    p_edit.add_argument(
+        "title", nargs="?", default=None, help="New task title (omit to leave unchanged)"
+    )
     p_edit.add_argument(
         "--due",
         type=_parse_due,
         default=None,
         help="New due date as YYYY-MM-DD, 'today', or 'tomorrow'",
+    )
+    p_edit.add_argument(
+        "--priority",
+        choices=PRIORITIES,
+        default=None,
+        help="New priority",
+    )
+    p_edit.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Replace the task's tags with these (repeatable)",
+    )
+    p_edit.add_argument(
+        "--repeat",
+        choices=REPEATS,
+        default=None,
+        help="New repeat setting (daily or weekly)",
     )
     p_edit.set_defaults(func=cmd_edit)
 
