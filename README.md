@@ -203,30 +203,31 @@ Everything onepact stores lives under `~/.onepact/`:
 | `habits.json`              | Habits — always JSON, regardless of `backend`            |
 | `archive.json`              | Tasks moved out by `archive` — always JSON               |
 | `config.toml`              | Settings written by `config set` (or edited by hand)     |
-| `backups/`                 | Timestamped snapshots made before `rm`/`migrate`/`archive` write |
+| `backups/`                 | Timestamped snapshots made before `rm`/`migrate`/`archive`/`journal rm`/`habit rm` write |
 | `.undo.json`                | Pointer used by `undo`; managed automatically             |
 
 ```bash
 onepact undo
 ```
 
-`rm`, `migrate json-to-sqlite`, and `archive` copy the file they're
-about to overwrite into `~/.onepact/backups/` (timestamped) before
-writing, so a mistaken removal, migration, or archive run always has a
-copy to recover from. Nothing is backed up the first time any of these
-commands runs against a fresh data directory — there's nothing there
-yet to protect.
+`rm`, `migrate json-to-sqlite`, `archive`, `journal rm`, and `habit rm`
+all copy the file they're about to overwrite into `~/.onepact/backups/`
+(timestamped) before writing, so a mistaken removal, migration, or
+archive run always has a copy to recover from. Nothing is backed up
+the first time any of these commands runs against a fresh data
+directory — there's nothing there yet to protect.
 
-`onepact undo` reverts the most recent `rm`, `migrate`, or `archive`, restoring
-whatever it backed up. It's a single-level undo: only the very last
-reversible action can be undone, so running `undo` twice in a row (with
-nothing destructive in between) reports "Nothing to undo" the second
-time rather than reaching further back — even if older backups are
-still sitting in `backups/` from earlier in the day.
+`onepact undo` reverts whichever of those five was run most recently,
+restoring whatever it backed up. It's a single-level undo: only the
+very last reversible action can be undone, so running `undo` twice in
+a row (with nothing destructive in between) reports "Nothing to undo"
+the second time rather than reaching further back — even if older
+backups are still sitting in `backups/` from earlier in the day.
 
-These automatic backups protect against a bad `rm`, `migrate`, or
-`archive`, but they live inside `~/.onepact/` itself, so they're no
-help if that whole directory is lost, moved, or corrupted. For real disaster recovery, use
+These automatic backups protect against a bad `rm`, `migrate`,
+`archive`, `journal rm`, or `habit rm`, but they live inside
+`~/.onepact/` itself, so they're no help if that whole directory is
+lost, moved, or corrupted. For real disaster recovery, use
 [`export`](#export--import) to write a copy of your tasks somewhere
 else entirely — a synced folder, another drive, version control — on
 whatever cadence matters to you; `import` brings it back on a fresh
@@ -311,7 +312,9 @@ linked task stay the same, only the body changes; an empty result aborts
 without saving, same as leaving a new entry blank. `journal search
 <text>` does a case-insensitive substring search across entry bodies,
 most recent match first. `journal rm <id>` asks for confirmation before
-deleting; pass `--yes` (or `-y`) to skip the prompt.
+deleting; pass `--yes` (or `-y`) to skip the prompt. Like `rm`, it backs
+up `journal.json` first, so `onepact undo` right after a `journal rm`
+brings the entry back.
 
 Entries are stored as JSON in `~/.onepact/journal.json`, separate from
 `tasks.json`.
@@ -348,7 +351,9 @@ a name another habit already has errors out instead of merging them.
 flagging whichever ones you've already checked in on today.
 
 `habit rm <name>` removes a habit (and its streak) after asking you to
-confirm; `--yes`/`-y` skips the prompt.
+confirm; `--yes`/`-y` skips the prompt. Like `rm`, it backs up
+`habits.json` first, so `onepact undo` right after a `habit rm` brings
+the habit back with its streak and check-in history intact.
 
 Habits are stored as JSON in `~/.onepact/habits.json`, separate from
 tasks and journal entries.

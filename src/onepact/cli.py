@@ -427,8 +427,12 @@ def cmd_journal_rm(store: JournalStore, args: argparse.Namespace) -> int:
             print("Aborted.")
             return 1
     remaining = [e for e in entries if e.id != args.id]
+    backup_path = _backup_file(store.path)
     store.save(remaining)
     print(f"Removed #{args.id}")
+    if backup_path is not None:
+        print(f"Backed up previous data to {backup_path}")
+        _record_undo(store.data_dir, [(store.path, backup_path)])
     return 0
 
 
@@ -526,8 +530,12 @@ def cmd_habit_rm(store: HabitStore, args: argparse.Namespace) -> int:
             print("Aborted.")
             return 1
     remaining = [h for h in habits if h.name != args.name]
+    backup_path = _backup_file(store.path)
     store.save(remaining)
     print(f"Removed habit {args.name!r}")
+    if backup_path is not None:
+        print(f"Backed up previous data to {backup_path}")
+        _record_undo(store.data_dir, [(store.path, backup_path)])
     return 0
 
 

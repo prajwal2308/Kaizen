@@ -2233,6 +2233,39 @@ def test_journal_rm_short_yes_flag(tmp_path):
     assert JournalStore(data_dir=tmp_path).load() == []
 
 
+def test_journal_rm_backs_up_before_removing(capsys, tmp_path):
+    main(["journal", "entry to remove"])
+    capsys.readouterr()
+
+    main(["journal", "rm", "1", "--yes"])
+    out = capsys.readouterr().out
+    assert "Backed up previous data to" in out
+    backups = list((tmp_path / "backups").glob("journal.json.*.bak"))
+    assert len(backups) == 1
+
+
+def test_undo_reverts_journal_rm(capsys, tmp_path):
+    main(["journal", "entry to remove"])
+    capsys.readouterr()
+
+    main(["journal", "rm", "1", "--yes"])
+    capsys.readouterr()
+
+    assert main(["undo"]) == 0
+    out = capsys.readouterr().out
+    assert "Restored" in out
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert [e.body for e in entries] == ["entry to remove"]
+
+
+def test_undo_after_journal_rm_consumes_the_backup(tmp_path):
+    main(["journal", "entry to remove"])
+    main(["journal", "rm", "1", "--yes"])
+
+    assert main(["undo"]) == 0
+    assert not list((tmp_path / "backups").glob("*.bak"))
+
+
 def test_journal_rm_confirmed_removes_entry(monkeypatch, capsys, tmp_path):
     main(["journal", "entry to remove"])
     capsys.readouterr()
@@ -2579,6 +2612,41 @@ def test_habit_rm_short_yes_flag(tmp_path):
 
     assert main(["habit", "rm", "exercise", "-y"]) == 0
     assert HabitStore(data_dir=tmp_path).load() == []
+
+
+def test_habit_rm_backs_up_before_removing(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    main(["habit", "rm", "exercise", "--yes"])
+    out = capsys.readouterr().out
+    assert "Backed up previous data to" in out
+    backups = list((tmp_path / "backups").glob("habits.json.*.bak"))
+    assert len(backups) == 1
+
+
+def test_undo_reverts_habit_rm(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+    capsys.readouterr()
+
+    main(["habit", "rm", "exercise", "--yes"])
+    capsys.readouterr()
+
+    assert main(["undo"]) == 0
+    out = capsys.readouterr().out
+    assert "Restored" in out
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert [h.name for h in habits] == ["exercise"]
+    assert habits[0].streak == 1
+
+
+def test_undo_after_habit_rm_consumes_the_backup(tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "rm", "exercise", "--yes"])
+
+    assert main(["undo"]) == 0
+    assert not list((tmp_path / "backups").glob("*.bak"))
 
 
 def test_habit_rm_confirmed_removes_habit(monkeypatch, capsys, tmp_path):
