@@ -263,19 +263,25 @@ def cmd_show(store: TaskStore, args: argparse.Namespace) -> int:
 
 def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
-    result = complete_task(tasks, args.id, _today())
-    if result is None:
-        print(f"No task with id {args.id}", file=sys.stderr)
-        return 1
-    completed, next_task = result
-    store.save(tasks)
-    print(f"Marked #{completed.id} done.")
-    if next_task is not None:
-        print(
-            f"Created #{next_task.id}: {next_task.title} "
-            f"[due {next_task.due}] (next {completed.repeat} occurrence)"
-        )
-    return 0
+    any_succeeded = False
+    ok = True
+    for task_id in args.id:
+        result = complete_task(tasks, task_id, _today())
+        if result is None:
+            print(f"No task with id {task_id}", file=sys.stderr)
+            ok = False
+            continue
+        any_succeeded = True
+        completed, next_task = result
+        print(f"Marked #{completed.id} done.")
+        if next_task is not None:
+            print(
+                f"Created #{next_task.id}: {next_task.title} "
+                f"[due {next_task.due}] (next {completed.repeat} occurrence)"
+            )
+    if any_succeeded:
+        store.save(tasks)
+    return 0 if ok else 1
 
 
 def cmd_edit(store: TaskStore, args: argparse.Namespace) -> int:
@@ -1293,11 +1299,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_done = sub.add_parser(
         "done",
-        help="Mark a task done",
-        epilog=_examples("onepact done 1"),
+        help="Mark one or more tasks done",
+        epilog=_examples("onepact done 1", "onepact done 1 2 3"),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p_done.add_argument("id", type=int, help="Task id")
+    p_done.add_argument("id", type=int, nargs="+", help="Task id(s)")
     p_done.set_defaults(func=cmd_done)
 
     p_edit = sub.add_parser(

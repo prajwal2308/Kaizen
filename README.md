@@ -48,6 +48,7 @@ onepact edit 1 --tag work --tag urgent
 onepact edit 1 --repeat weekly
 onepact done 1
 onepact done 5
+onepact done 2 3 4
 onepact list --all
 onepact rm 1
 ```
@@ -95,6 +96,13 @@ there'd be nothing to change.
 done as usual and creates the next occurrence — same title, priority,
 tags, and repeat setting — due one day (`daily`) or one week (`weekly`)
 from today.
+
+`done` takes more than one id at a time (`done 2 3 4`), marking each
+one done and reporting it on its own line — a recurring task among
+them still gets its own "Created #N" line for its next occurrence. An
+id that doesn't exist is reported on stderr without stopping the rest
+from being processed; the exit code is `1` if any id was unknown, but
+every id that did exist is still marked done either way.
 
 Tasks are stored in `~/.onepact/onepact.db` (SQLite) by default; see
 [Storage backend](#storage-backend) for how to use JSON instead.

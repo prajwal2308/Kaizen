@@ -61,6 +61,63 @@ def test_done_unknown_id_errors():
     assert main(["done", "999"]) == 1
 
 
+def test_done_accepts_multiple_ids(capsys, tmp_path):
+    main(["add", "task one"])
+    main(["add", "task two"])
+    main(["add", "task three"])
+    capsys.readouterr()
+
+    assert main(["done", "1", "2", "3"]) == 0
+    out = capsys.readouterr().out
+    assert "Marked #1 done." in out
+    assert "Marked #2 done." in out
+    assert "Marked #3 done." in out
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert all(t.done for t in tasks)
+
+
+def test_done_multiple_ids_reports_each_unknown_one(capsys, tmp_path):
+    main(["add", "task one"])
+    capsys.readouterr()
+
+    assert main(["done", "1", "999"]) == 1
+    captured = capsys.readouterr()
+    assert "Marked #1 done." in captured.out
+    assert "No task with id 999" in captured.err
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[0].done is True
+
+
+def test_done_with_only_unknown_ids_does_not_write(capsys, tmp_path):
+    main(["add", "task one"])
+    capsys.readouterr()
+
+    assert main(["done", "998", "999"]) == 1
+    err = capsys.readouterr().err
+    assert "No task with id 998" in err
+    assert "No task with id 999" in err
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert tasks[0].done is False
+
+
+def test_done_multiple_ids_each_creates_its_own_recurring_occurrence(tmp_path):
+    main(["add", "water the plants", "--repeat", "daily"])
+    main(["add", "water the garden", "--repeat", "daily"])
+
+    assert main(["done", "1", "2"]) == 0
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert [t.title for t in tasks] == [
+        "water the plants",
+        "water the garden",
+        "water the plants",
+        "water the garden",
+    ]
+    assert [t.id for t in tasks] == [1, 2, 3, 4]
+
+
 def test_done_daily_recurring_creates_next_occurrence(capsys, tmp_path):
     main(["add", "water the plants", "--repeat", "daily", "--priority", "high"])
     capsys.readouterr()
