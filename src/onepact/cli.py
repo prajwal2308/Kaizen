@@ -180,8 +180,8 @@ def cmd_list(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     if not args.all:
         tasks = [t for t in tasks if not t.done]
-    if args.tag:
-        tasks = [t for t in tasks if args.tag in t.tags]
+    if args.tags:
+        tasks = [t for t in tasks if all(tag in t.tags for tag in args.tags)]
     if args.priority:
         tasks = [t for t in tasks if t.priority == args.priority]
     today = _today().isoformat()
@@ -353,8 +353,8 @@ def _format_entry_line(e: Entry, color: bool = False) -> str:
 
 def cmd_journal_list(store: JournalStore, args: argparse.Namespace) -> int:
     entries = list(reversed(store.load()))
-    if args.tag:
-        entries = [e for e in entries if args.tag in e.tags]
+    if args.tags:
+        entries = [e for e in entries if all(tag in e.tags for tag in args.tags)]
     if args.limit is not None:
         entries = entries[: args.limit]
     if not entries:
@@ -1205,7 +1205,13 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_list.add_argument("--all", action="store_true", help="Include completed tasks")
-    p_list.add_argument("--tag", default=None, help="Filter to tasks with this tag")
+    p_list.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Filter to tasks with this tag (repeatable; narrows to tasks with all of them)",
+    )
     p_list.add_argument(
         "--priority",
         choices=PRIORITIES,
@@ -1527,7 +1533,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Show at most this many entries",
     )
-    p_journal_list.add_argument("--tag", default=None, help="Filter to entries with this tag")
+    p_journal_list.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Filter to entries with this tag (repeatable; narrows to entries with all of them)",
+    )
     p_journal_list.set_defaults(func=cmd_journal_list, store_type="journal")
 
     p_journal_show = journal_sub.add_parser(

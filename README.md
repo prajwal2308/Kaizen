@@ -34,6 +34,7 @@ onepact add "mow the lawn" --tag home --tag chores --priority high
 onepact add "take out the trash" --repeat weekly
 onepact list
 onepact list --tag home
+onepact list --tag home --tag urgent
 onepact list --priority high
 onepact list --tag home --priority high
 onepact list --sort due
@@ -58,7 +59,9 @@ onepact rm 1
 
 `list --tag <t>`, `--priority <p>`, and `--overdue` all combine — pass
 several to narrow down further, e.g. `list --tag home --priority high`
-shows only high-priority tasks tagged `home`.
+shows only high-priority tasks tagged `home`. `--tag` is itself
+repeatable (`--tag home --tag urgent`), narrowing to tasks carrying
+*all* of the tags given, not just one.
 
 `list --sort {priority,due,created}` controls ordering: `priority` (the
 default) shows high-priority tasks first, `due` shows the soonest due
@@ -295,6 +298,7 @@ onepact journal
 onepact journal list
 onepact journal list --limit 5
 onepact journal list --tag work
+onepact journal list --tag work --tag urgent
 onepact journal show 1
 onepact journal edit 1
 onepact journal search proposal
@@ -311,7 +315,9 @@ something longer — an empty entry, whether from a closed editor or from
 Add `--task <id>` to link an entry to an existing task (rejected if the
 task doesn't exist); `journal list` and `journal show` display the link
 when present. Add `--tag <t>` (repeatable) to tag an entry, same as
-tasks; `journal list --tag <t>` filters to entries with that tag.
+tasks; `journal list --tag <t>` filters to entries with that tag, and
+`--tag` is repeatable there too (`--tag work --tag urgent` narrows to
+entries with all of them), same as `list --tag` for tasks.
 `journal list` shows entries most recent first, one line each,
 optionally capped with `--limit N`. `journal show <id>` prints an
 entry's full body. `journal edit <id>` opens that entry's existing body

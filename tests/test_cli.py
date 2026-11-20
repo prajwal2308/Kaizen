@@ -1180,6 +1180,30 @@ def test_list_filters_by_tag(capsys):
     assert "home task" not in out
 
 
+def test_list_multiple_tags_requires_all_of_them(capsys):
+    main(["add", "work and urgent", "--tag", "work", "--tag", "urgent"])
+    main(["add", "work only", "--tag", "work"])
+    main(["add", "urgent only", "--tag", "urgent"])
+    capsys.readouterr()
+
+    main(["list", "--tag", "work", "--tag", "urgent"])
+    out = capsys.readouterr().out
+    assert "work and urgent" in out
+    assert "work only" not in out
+    assert "urgent only" not in out
+
+
+def test_list_single_tag_flag_still_works_as_before(capsys):
+    main(["add", "work task", "--tag", "work", "--tag", "urgent"])
+    main(["add", "home task", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["list", "--tag", "work"])
+    out = capsys.readouterr().out
+    assert "work task" in out
+    assert "home task" not in out
+
+
 def test_show_displays_full_detail(capsys):
     main(["add", "renew passport", "--priority", "high", "--due", "2099-01-01", "--tag", "admin"])
     capsys.readouterr()
@@ -2067,6 +2091,17 @@ def test_journal_list_filters_by_tag(capsys):
     out = capsys.readouterr().out
     assert "work entry" in out
     assert "home entry" not in out
+
+
+def test_journal_list_multiple_tags_requires_all_of_them(capsys):
+    main(["journal", "work and urgent entry", "--tag", "work", "--tag", "urgent"])
+    main(["journal", "work only entry", "--tag", "work"])
+    capsys.readouterr()
+
+    main(["journal", "list", "--tag", "work", "--tag", "urgent"])
+    out = capsys.readouterr().out
+    assert "work and urgent entry" in out
+    assert "work only entry" not in out
 
 
 def test_journal_list_tag_filter_with_no_matches(capsys):
