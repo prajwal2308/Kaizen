@@ -118,6 +118,20 @@ def test_done_multiple_ids_each_creates_its_own_recurring_occurrence(tmp_path):
     assert [t.id for t in tasks] == [1, 2, 3, 4]
 
 
+def test_done_dedupes_a_repeated_id_in_one_call(capsys, tmp_path):
+    main(["add", "water the plants", "--repeat", "daily"])
+    capsys.readouterr()
+
+    assert main(["done", "1", "1"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("Marked #1 done.") == 1
+    assert out.count("Created #") == 1
+
+    tasks = TaskStore(data_dir=tmp_path).load()
+    assert len(tasks) == 2
+    assert [t.id for t in tasks] == [1, 2]
+
+
 def test_done_daily_recurring_creates_next_occurrence(capsys, tmp_path):
     main(["add", "water the plants", "--repeat", "daily", "--priority", "high"])
     capsys.readouterr()

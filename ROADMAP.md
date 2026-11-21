@@ -156,7 +156,7 @@ thing -- each one small, each one a real gap rather than a hypothetical:
 - [x] 84. `journal rm` and `habit rm` get the same backup-then-`undo` safety net `rm`/`migrate`/`archive` already have -- both currently delete for good right after their confirmation prompt, with no way back, unlike every other destructive command. The undo log already supports more than one file per action (item 79), so this is the same mechanism, not a new one.
 - [x] 85. `onepact done <id> [<id> ...]` accepts more than one id in a single call, reporting each one individually -- clearing several tasks at once is one of the most repetitive parts of a daily session and currently takes one full command per task.
 - [x] 86. `list --tag <t>` and `journal list --tag <t>` become repeatable (`--tag work --tag urgent` narrows to items carrying all of them) -- `add`/`journal add`'s own `--tag` is already repeatable, so a task or entry can carry several tags today with no way to filter by more than one at a time.
-- [ ] 87. README documentation for items 83-86.
+- [x] 87. README documentation for items 83-86.
 
 ---
 

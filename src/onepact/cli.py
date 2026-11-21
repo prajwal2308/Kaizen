@@ -265,7 +265,7 @@ def cmd_done(store: TaskStore, args: argparse.Namespace) -> int:
     tasks = store.load()
     any_succeeded = False
     ok = True
-    for task_id in args.id:
+    for task_id in dict.fromkeys(args.id):
         result = complete_task(tasks, task_id, _today())
         if result is None:
             print(f"No task with id {task_id}", file=sys.stderr)
