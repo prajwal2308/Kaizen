@@ -158,6 +158,20 @@ thing -- each one small, each one a real gap rather than a hypothetical:
 - [x] 86. `list --tag <t>` and `journal list --tag <t>` become repeatable (`--tag work --tag urgent` narrows to items carrying all of them) -- `add`/`journal add`'s own `--tag` is already repeatable, so a task or entry can carry several tags today with no way to filter by more than one at a time.
 - [x] 87. README documentation for items 83-86.
 
+## Phase 11 — Edit parity, finished; archive made visible
+
+Item 83 fixed `edit` so every field `add` can set, `edit` can touch
+after the fact too. Reading `habit edit`/`journal edit` against that
+same standard surfaced the identical gap, twice more, plus a separate
+one found by reading `archive` against the rest of the data-safety
+story (items 37-40, 81):
+
+- [x] 88. `habit edit <name> [<new-name>]` gains `--daily`/`--weekly` (mutually exclusive, like `habit add`) to change a habit's frequency after creation, and `new-name` becomes optional so changing just the frequency doesn't require retyping the name too -- until now the only way to fix a habit set up with the wrong frequency was delete-and-recreate, losing its streak and check-in history, the same gap item 83 already closed for tasks.
+- [ ] 89. `journal edit <id>` gains `--tag` (repeatable, replaces the entry's existing tags) and `--task <id>` (changes which task it's linked to, validated the same way `journal add --task` already is) -- until now `journal edit` could only change an entry's body, so fixing its tags or task link meant losing its id and timestamp to a delete-and-recreate.
+- [ ] 90. `onepact archive list` -- a read-only view of `archive.json` in the same line format `list` already uses. Right now, once a task is archived it's invisible to every other command; the only way to see what's in there is opening the raw JSON file by hand.
+- [ ] 91. `export`/`import --what archive` extends the `--what` flag (item 81) to cover `archive.json` -- the one task-related file Phase 4's/item 81's data-safety story still doesn't reach, even though it holds real task history.
+- [ ] 92. README documentation for items 88-91.
+
 ---
 
 When you reach the end of this list, don't leave it empty: propose the next

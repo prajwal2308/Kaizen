@@ -456,17 +456,28 @@ def cmd_habit_add(store: HabitStore, args: argparse.Namespace) -> int:
 
 
 def cmd_habit_edit(store: HabitStore, args: argparse.Namespace) -> int:
+    if args.new_name is None and not args.daily and not args.weekly:
+        print("Nothing to edit: pass a new name or --daily/--weekly.", file=sys.stderr)
+        return 1
     habits = store.load()
     habit = next((h for h in habits if h.name == args.name), None)
     if habit is None:
         print(f"No habit named {args.name!r}", file=sys.stderr)
         return 1
-    if args.new_name != habit.name and any(h.name == args.new_name for h in habits):
-        print(f"Habit {args.new_name!r} already exists", file=sys.stderr)
-        return 1
-    habit.name = args.new_name
+    if args.new_name is not None:
+        if args.new_name != habit.name and any(h.name == args.new_name for h in habits):
+            print(f"Habit {args.new_name!r} already exists", file=sys.stderr)
+            return 1
+        habit.name = args.new_name
+    if args.daily:
+        habit.frequency = "daily"
+    elif args.weekly:
+        habit.frequency = "weekly"
     store.save(habits)
-    print(f"Renamed habit {args.name!r} to {args.new_name!r}")
+    if args.new_name is not None:
+        print(f"Renamed habit {args.name!r} to {args.new_name!r}")
+    if args.daily or args.weekly:
+        print(f"Changed {habit.name!r} to check in {habit.frequency}")
     return 0
 
 
@@ -1608,12 +1619,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_habit_edit = habit_sub.add_parser(
         "edit",
-        help="Rename a habit",
-        epilog=_examples('onepact habit edit "exercise" "workout"'),
+        help="Rename a habit or change its frequency",
+        epilog=_examples(
+            'onepact habit edit "exercise" "workout"',
+            'onepact habit edit "exercise" --weekly',
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_habit_edit.add_argument("name", help="Current habit name")
-    p_habit_edit.add_argument("new_name", help="New habit name")
+    p_habit_edit.add_argument(
+        "new_name", nargs="?", default=None, help="New habit name (omit to leave unchanged)"
+    )
+    habit_edit_freq = p_habit_edit.add_mutually_exclusive_group()
+    habit_edit_freq.add_argument(
+        "--daily", action="store_true", help="Change this habit to check in daily"
+    )
+    habit_edit_freq.add_argument(
+        "--weekly", action="store_true", help="Change this habit to check in weekly"
+    )
     p_habit_edit.set_defaults(func=cmd_habit_edit, store_type="habit")
 
     p_habit_check = habit_sub.add_parser(

@@ -340,6 +340,7 @@ onepact habit add "exercise" --daily
 onepact habit add "review inbox" --weekly
 onepact habit check "exercise"
 onepact habit edit "exercise" "workout"
+onepact habit edit "workout" --weekly
 onepact habit list
 onepact habit rm "workout"
 ```
@@ -357,9 +358,16 @@ last check-in — more than a day for a `--daily` habit, more than a
 week for `--weekly` — the streak resets to 1 instead of continuing,
 since the streak was already broken.
 
-`habit edit <name> <new-name>` renames a habit, keeping its frequency
+`habit edit <name> [<new-name>]` renames a habit, keeping its frequency
 and streak exactly as they were -- only the name changes. Renaming to
 a name another habit already has errors out instead of merging them.
+`new-name` is optional, and so is `--daily`/`--weekly` (mutually
+exclusive, same as on `habit add`) to change the habit's frequency
+without renaming it; pass both to rename and change frequency in one
+call. Either way the streak and check-in history carry over untouched.
+Calling `habit edit <name>` with no new name and no frequency flag is
+rejected rather than treated as a no-op, since there'd be nothing to
+change.
 
 `habit list` shows every habit's name, frequency, and current streak,
 flagging whichever ones you've already checked in on today.

@@ -2547,6 +2547,59 @@ def test_habit_edit_does_not_disturb_other_habits(tmp_path):
     assert habits == {"workout", "read"}
 
 
+def test_habit_edit_changes_frequency_without_renaming(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "edit", "exercise", "--weekly"]) == 0
+    out = capsys.readouterr().out
+    assert "Changed 'exercise' to check in weekly" in out
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].name == "exercise"
+    assert habits[0].frequency == "weekly"
+
+
+def test_habit_edit_changes_frequency_preserves_streak(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2024, 1, 10))
+    main(["habit", "add", "exercise", "--daily"])
+    main(["habit", "check", "exercise"])
+
+    assert main(["habit", "edit", "exercise", "--weekly"]) == 0
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].streak == 1
+    assert habits[0].last_checked == "2024-01-10"
+
+
+def test_habit_edit_renames_and_changes_frequency_together(capsys, tmp_path):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "edit", "exercise", "workout", "--weekly"]) == 0
+    out = capsys.readouterr().out
+    assert "Renamed habit 'exercise' to 'workout'" in out
+    assert "Changed 'workout' to check in weekly" in out
+
+    habits = HabitStore(data_dir=tmp_path).load()
+    assert habits[0].name == "workout"
+    assert habits[0].frequency == "weekly"
+
+
+def test_habit_edit_with_no_new_name_and_no_frequency_flag_errors(capsys):
+    main(["habit", "add", "exercise", "--daily"])
+    capsys.readouterr()
+
+    assert main(["habit", "edit", "exercise"]) == 1
+    err = capsys.readouterr().err
+    assert "Nothing to edit" in err
+
+
+def test_habit_edit_rejects_both_daily_and_weekly():
+    main(["habit", "add", "exercise", "--daily"])
+    with pytest.raises(SystemExit):
+        main(["habit", "edit", "exercise", "--daily", "--weekly"])
+
+
 def test_habit_check_increments_streak_from_zero(capsys, tmp_path):
     main(["habit", "add", "exercise", "--daily"])
     capsys.readouterr()
