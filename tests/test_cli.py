@@ -2237,6 +2237,82 @@ def test_journal_edit_empty_result_aborts(monkeypatch, capsys, tmp_path):
     assert entries[0].body == "entry to keep"
 
 
+def test_journal_edit_tags_replaces_existing_tags(monkeypatch, tmp_path):
+    main(["journal", "entry to fix", "--tag", "admin"])
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "fixed entry\n")
+
+    assert main(["journal", "edit", "1", "--tag", "work", "--tag", "urgent"]) == 0
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == ["work", "urgent"]
+    assert entries[0].body == "fixed entry"
+
+
+def test_journal_edit_tags_dedupes_repeated_tags(monkeypatch, tmp_path):
+    main(["journal", "entry to fix"])
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "fixed entry\n")
+
+    main(["journal", "edit", "1", "--tag", "work", "--tag", "work"])
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == ["work"]
+
+
+def test_journal_edit_without_tag_leaves_tags_unchanged(monkeypatch, tmp_path):
+    main(["journal", "entry to fix", "--tag", "admin"])
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "fixed entry\n")
+
+    main(["journal", "edit", "1"])
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == ["admin"]
+
+
+def test_journal_edit_task_changes_the_linked_task(monkeypatch, tmp_path):
+    main(["add", "first task"])
+    main(["add", "second task"])
+    main(["journal", "entry to fix", "--task", "1"])
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "fixed entry\n")
+
+    assert main(["journal", "edit", "1", "--task", "2"]) == 0
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].task_id == 2
+
+
+def test_journal_edit_task_rejects_unknown_task_id(monkeypatch, capsys, tmp_path):
+    main(["journal", "entry to fix"])
+    capsys.readouterr()
+
+    assert main(["journal", "edit", "1", "--task", "999"]) == 1
+    err = capsys.readouterr().err
+    assert "No task with id 999" in err
+
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].body == "entry to fix"
+
+
+def test_journal_edit_task_rejection_does_not_open_the_editor(monkeypatch, capsys):
+    main(["journal", "entry to fix"])
+    capsys.readouterr()
+    opened = []
+    monkeypatch.setattr(
+        "onepact.cli._read_entry_from_editor",
+        lambda initial="": opened.append(True) or initial,
+    )
+
+    main(["journal", "edit", "1", "--task", "999"])
+    assert opened == []
+
+
+def test_journal_edit_tag_and_task_together(monkeypatch, tmp_path):
+    main(["add", "linked task"])
+    main(["journal", "entry to fix"])
+    monkeypatch.setattr("onepact.cli._read_entry_from_editor", lambda initial="": "fixed entry\n")
+
+    assert main(["journal", "edit", "1", "--tag", "work", "--task", "1"]) == 0
+    entries = JournalStore(data_dir=tmp_path).load()
+    assert entries[0].tags == ["work"]
+    assert entries[0].task_id == 1
+    assert entries[0].body == "fixed entry"
+
+
 def test_journal_edit_editor_failure_reported(monkeypatch, capsys):
     main(["journal", "entry"])
     capsys.readouterr()

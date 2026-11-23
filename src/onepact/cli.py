@@ -398,6 +398,9 @@ def cmd_journal_edit(store: JournalStore, args: argparse.Namespace) -> int:
     if entry is None:
         print(f"No journal entry with id {args.id}", file=sys.stderr)
         return 1
+    if args.task is not None and not any(t.id == args.task for t in _get_task_store().load()):
+        print(f"No task with id {args.task}", file=sys.stderr)
+        return 1
     try:
         body = _read_entry_from_editor(entry.body)
     except (OSError, subprocess.CalledProcessError) as exc:
@@ -408,6 +411,10 @@ def cmd_journal_edit(store: JournalStore, args: argparse.Namespace) -> int:
         print("Empty entry, nothing changed.", file=sys.stderr)
         return 1
     entry.body = body
+    if args.tags is not None:
+        entry.tags = list(dict.fromkeys(args.tags))
+    if args.task is not None:
+        entry.task_id = args.task
     store.save(entries)
     print(f"Edited #{entry.id}")
     return 0
@@ -1564,11 +1571,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_journal_edit = journal_sub.add_parser(
         "edit",
-        help="Edit a journal entry's body in $EDITOR",
-        epilog=_examples("onepact journal edit 1"),
+        help="Edit a journal entry's body, tags, or linked task",
+        epilog=_examples(
+            "onepact journal edit 1",
+            "onepact journal edit 1 --tag work --tag urgent",
+            "onepact journal edit 1 --task 2",
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_journal_edit.add_argument("id", type=int, help="Entry id")
+    p_journal_edit.add_argument(
+        "--task",
+        type=int,
+        default=None,
+        help="Change the linked task to <id>",
+    )
+    p_journal_edit.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Replace the entry's tags with these (repeatable)",
+    )
     p_journal_edit.set_defaults(func=cmd_journal_edit, store_type="journal")
 
     p_journal_search = journal_sub.add_parser(

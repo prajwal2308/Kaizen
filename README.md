@@ -301,6 +301,8 @@ onepact journal list --tag work
 onepact journal list --tag work --tag urgent
 onepact journal show 1
 onepact journal edit 1
+onepact journal edit 1 --tag work --tag urgent
+onepact journal edit 1 --task 2
 onepact journal search proposal
 onepact journal rm 1
 onepact journal rm 1 --yes
@@ -321,10 +323,14 @@ entries with all of them), same as `list --tag` for tasks.
 `journal list` shows entries most recent first, one line each,
 optionally capped with `--limit N`. `journal show <id>` prints an
 entry's full body. `journal edit <id>` opens that entry's existing body
-in `$EDITOR` so you can fix it in place -- the id, timestamp, tags, and
-linked task stay the same, only the body changes; an empty result aborts
-without saving, same as leaving a new entry blank. `journal search
-<text>` does a case-insensitive substring search across entry bodies,
+in `$EDITOR` so you can fix it in place -- the id and timestamp always
+stay the same; an empty result aborts the whole edit without saving
+anything, same as leaving a new entry blank. Add `--tag` (repeatable)
+to replace the entry's tags, or `--task <id>` to change which task
+it's linked to (rejected for an unknown id, checked before `$EDITOR`
+even opens) -- either or both combine with the body edit in the same
+call; omit them and the existing tags/link carry over untouched.
+`journal search <text>` does a case-insensitive substring search across entry bodies,
 most recent match first. `journal rm <id>` asks for confirmation before
 deleting; pass `--yes` (or `-y`) to skip the prompt. Like `rm`, it backs
 up `journal.json` first, so `onepact undo` right after a `journal rm`
