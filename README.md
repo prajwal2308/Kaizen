@@ -186,6 +186,7 @@ the file still imports normally.
 ```bash
 onepact archive
 onepact archive --days 60
+onepact archive list
 ```
 
 `archive` moves completed, non-recurring tasks out of the active task
@@ -201,6 +202,13 @@ overwriting it. Like `rm`/`migrate`, it backs up the active store (and
 right after an `archive` reverses both halves of the move together:
 the tasks come back into the active list and `archive.json` is
 restored to whatever it held immediately before that run.
+
+`archive list` prints every archived task, one line each, in the same
+format the plain `list` already uses -- the only way to see what's in
+`archive.json` without opening it by hand. It's read-only: it never
+touches the active task list or writes anything. (`archive` on its own
+is shorthand for `archive run`, which is what actually moves tasks;
+spelling it out explicitly also works.)
 
 ## Data & backups
 
@@ -518,10 +526,11 @@ onepact completion zsh > ~/.zsh/completions/_onepact
 
 Tab-completes top-level commands (`onepact d<TAB>` → `done`) and, one
 level deeper, each command group's own subcommands (`onepact journal
-<TAB>` → `add edit list rm search show`; same for `habit` and `config`).
-It doesn't complete flag values. The script is generated from
-`onepact`'s actual command set each time you run `completion`, so it
-can't go stale the way a hand-copied one would as commands are added.
+<TAB>` → `add edit list rm search show`; same for `habit`, `config`,
+and `archive`). It doesn't complete flag values. The script is
+generated from `onepact`'s actual command set each time you run
+`completion`, so it can't go stale the way a hand-copied one would as
+commands are added.
 
 ## Development
 

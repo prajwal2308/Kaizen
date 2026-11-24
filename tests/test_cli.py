@@ -1657,6 +1657,100 @@ def test_archive_rejects_invalid_days():
         main(["archive", "--days", "0"])
 
 
+def test_archive_list_with_nothing_archived(capsys):
+    assert main(["archive", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "No archived tasks." in out
+
+
+def test_archive_list_shows_archived_tasks(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [
+            Task(
+                id=1,
+                title="old done task",
+                priority="high",
+                done=True,
+                done_at="2026-01-01T00:00:00+00:00",
+            )
+        ]
+    )
+    main(["archive"])
+    capsys.readouterr()
+
+    assert main(["archive", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "[x] #1 (high) old done task" in out
+
+
+def test_archive_list_reflects_multiple_runs(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="first batch", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=2, title="second batch", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+    capsys.readouterr()
+
+    main(["archive", "list"])
+    out = capsys.readouterr().out
+    assert "first batch" in out
+    assert "second batch" in out
+    assert out.index("first batch") < out.index("second batch")
+
+
+def test_archive_list_does_not_affect_the_active_task_list(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    main(["archive", "list"])
+    assert TaskStore(data_dir=tmp_path).load() == []
+
+
+def test_archive_list_reads_from_active_backend(capsys, tmp_path, monkeypatch):
+    _use_real_backend_default(monkeypatch, tmp_path)
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    main(["add", "sqlite task"])
+    main(["done", "1"])
+    tasks = SqliteTaskStore(data_dir=tmp_path).load()
+    tasks[0].done_at = "2020-01-01T00:00:00+00:00"
+    SqliteTaskStore(data_dir=tmp_path).save(tasks)
+    main(["archive"])
+    capsys.readouterr()
+
+    main(["archive", "list"])
+    out = capsys.readouterr().out
+    assert "sqlite task" in out
+
+
+def test_archive_run_explicit_subcommand_still_works(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+
+    assert main(["archive", "run"]) == 0
+    assert TaskStore(data_dir=tmp_path).load() == []
+
+
+def test_archive_run_explicit_subcommand_accepts_days_flag(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="done 10 days ago", done=True, done_at="2026-01-22T00:00:00+00:00")]
+    )
+
+    main(["archive", "run", "--days", "5"])
+    assert TaskStore(data_dir=tmp_path).load() == []
+
+
 def test_undo_reverts_rm(capsys, tmp_path):
     main(["add", "task one"])
     main(["add", "task two"])

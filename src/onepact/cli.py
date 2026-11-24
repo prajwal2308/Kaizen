@@ -875,6 +875,24 @@ def cmd_archive(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_archive_list(store: TaskStore, args: argparse.Namespace) -> int:
+    archive_path = store.data_dir / _ARCHIVE_FILE
+    if not archive_path.exists():
+        print("No archived tasks.")
+        return 0
+    with archive_path.open("r", encoding="utf-8") as f:
+        raw = json.load(f)
+    tasks = [Task.from_dict(item) for item in raw]
+    if not tasks:
+        print("No archived tasks.")
+        return 0
+    today = _today().isoformat()
+    color = should_color()
+    for t in tasks:
+        print(_format_task_line(t, today, color))
+    return 0
+
+
 def cmd_undo(_store: None, args: argparse.Namespace) -> int:
     data_dir = TaskStore().data_dir
     log_path = data_dir / _UNDO_LOG_FILE
@@ -1427,12 +1445,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_migrate.set_defaults(func=cmd_migrate, store_type="json")
 
     p_archive = sub.add_parser(
-        "archive",
+        "archive", help="Move old completed tasks out of the active list, or list archived ones"
+    )
+    archive_sub = p_archive.add_subparsers(dest="archive_command", required=True)
+
+    p_archive_run = archive_sub.add_parser(
+        "run",
         help="Move old completed tasks out of the active task list",
         epilog=_examples("onepact archive", "onepact archive --days 60"),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p_archive.add_argument(
+    p_archive_run.add_argument(
         "--days",
         type=_positive_int,
         default=_DEFAULT_ARCHIVE_DAYS,
@@ -1441,7 +1464,15 @@ def build_parser() -> argparse.ArgumentParser:
             f"(default: {_DEFAULT_ARCHIVE_DAYS})"
         ),
     )
-    p_archive.set_defaults(func=cmd_archive)
+    p_archive_run.set_defaults(func=cmd_archive)
+
+    p_archive_list = archive_sub.add_parser(
+        "list",
+        help="List archived tasks",
+        epilog=_examples("onepact archive list"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p_archive_list.set_defaults(func=cmd_archive_list)
 
     p_export = sub.add_parser(
         "export",
@@ -1699,6 +1730,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 _JOURNAL_SUBCOMMANDS = {"add", "list", "show", "edit", "search", "rm"}
+_ARCHIVE_SUBCOMMANDS = {"run", "list"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1709,6 +1741,10 @@ def main(argv: list[str] | None = None) -> int:
         rest = argv[1:]
         if not rest or rest[0] not in _JOURNAL_SUBCOMMANDS:
             argv = ["journal", "add", *rest]
+    if argv and argv[0] == "archive":
+        rest = argv[1:]
+        if not rest or rest[0] not in _ARCHIVE_SUBCOMMANDS:
+            argv = ["archive", "run", *rest]
 
     parser = build_parser()
     args = parser.parse_args(argv)
