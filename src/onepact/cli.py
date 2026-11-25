@@ -875,14 +875,24 @@ def cmd_archive(store: TaskStore, args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_archive_list(store: TaskStore, args: argparse.Namespace) -> int:
-    archive_path = store.data_dir / _ARCHIVE_FILE
+def _load_archived_tasks(data_dir: Path) -> list[Task]:
+    archive_path = data_dir / _ARCHIVE_FILE
     if not archive_path.exists():
-        print("No archived tasks.")
-        return 0
+        return []
     with archive_path.open("r", encoding="utf-8") as f:
         raw = json.load(f)
-    tasks = [Task.from_dict(item) for item in raw]
+    return [Task.from_dict(item) for item in raw]
+
+
+def _save_archived_tasks(data_dir: Path, tasks: list[Task]) -> None:
+    data_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = data_dir / _ARCHIVE_FILE
+    with archive_path.open("w", encoding="utf-8") as f:
+        json.dump([t.to_dict() for t in tasks], f, indent=2)
+
+
+def cmd_archive_list(store: TaskStore, args: argparse.Namespace) -> int:
+    tasks = _load_archived_tasks(store.data_dir)
     if not tasks:
         print("No archived tasks.")
         return 0
@@ -1024,7 +1034,12 @@ def _habits_from_csv(text: str) -> list[Habit]:
     return habits
 
 
-_EXPORT_LABELS = {"tasks": "task(s)", "journal": "journal entry(s)", "habits": "habit(s)"}
+_EXPORT_LABELS = {
+    "tasks": "task(s)",
+    "journal": "journal entry(s)",
+    "habits": "habit(s)",
+    "archive": "archived task(s)",
+}
 
 
 def cmd_export(_store: None, args: argparse.Namespace) -> int:
@@ -1042,6 +1057,13 @@ def cmd_export(_store: None, args: argparse.Namespace) -> int:
         else:
             text = _habits_to_csv(habits).rstrip("\n")
         count = len(habits)
+    elif args.what == "archive":
+        archived = _load_archived_tasks(_get_task_store().data_dir)
+        if args.format == "json":
+            text = json.dumps([t.to_dict() for t in archived], indent=2)
+        else:
+            text = _tasks_to_csv(archived).rstrip("\n")
+        count = len(archived)
     else:
         tasks = _get_task_store().load()
         if args.format == "json":
@@ -1160,6 +1182,23 @@ def cmd_import(_store: None, args: argparse.Namespace) -> int:
                 f"Skipped {skipped} habit(s) with a name that already exists",
                 file=sys.stderr,
             )
+        return 0
+
+    if args.what == "archive":
+        try:
+            imported_tasks = _parse_imported_tasks(path, fmt)
+        except _IMPORT_PARSE_ERRORS as exc:
+            print(f"Could not parse {path} as {fmt}: {exc}", file=sys.stderr)
+            return 1
+        data_dir = _get_task_store().data_dir
+        archived = _load_archived_tasks(data_dir)
+        next_id = max((t.id for t in archived), default=0) + 1
+        for t in imported_tasks:
+            t.id = next_id
+            next_id += 1
+            archived.append(t)
+        _save_archived_tasks(data_dir, archived)
+        print(f"Imported {len(imported_tasks)} archived task(s) from {path}")
         return 0
 
     try:
@@ -1476,12 +1515,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_export = sub.add_parser(
         "export",
-        help="Export tasks, journal entries, or habits as JSON or CSV",
+        help="Export tasks, journal entries, habits, or archived tasks as JSON or CSV",
         epilog=_examples(
             "onepact export --format json",
             "onepact export --format csv --output tasks.csv",
             "onepact export --what journal --format json --output journal.json",
             "onepact export --what habits --format json --output habits.json",
+            "onepact export --what archive --format json --output archive.json",
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1499,7 +1539,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_export.add_argument(
         "--what",
-        choices=("tasks", "journal", "habits"),
+        choices=("tasks", "journal", "habits", "archive"),
         default="tasks",
         help="What to export (default: tasks)",
     )
@@ -1507,12 +1547,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_import = sub.add_parser(
         "import",
-        help="Import tasks, journal entries, or habits from a JSON or CSV export",
+        help="Import tasks, journal entries, habits, or archived tasks from a JSON or CSV export",
         epilog=_examples(
             "onepact import backup.json",
             "onepact import tasks.csv",
             "onepact import journal.json --what journal",
             "onepact import habits.json --what habits",
+            "onepact import archive.json --what archive",
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1525,7 +1566,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_import.add_argument(
         "--what",
-        choices=("tasks", "journal", "habits"),
+        choices=("tasks", "journal", "habits", "archive"),
         default="tasks",
         help="What to import (default: tasks)",
     )

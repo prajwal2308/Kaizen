@@ -790,6 +790,123 @@ def test_export_what_defaults_to_tasks(capsys):
     assert [t["title"] for t in tasks] == ["a task"]
 
 
+def test_export_what_archive_json_to_stdout(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [
+            Task(
+                id=1,
+                title="old done task",
+                priority="high",
+                done=True,
+                done_at="2026-01-01T00:00:00+00:00",
+            )
+        ]
+    )
+    main(["archive"])
+    capsys.readouterr()
+
+    assert main(["export", "--what", "archive", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    tasks = json.loads(out)
+    assert [t["title"] for t in tasks] == ["old done task"]
+    assert tasks[0]["priority"] == "high"
+
+
+def test_export_what_archive_csv_to_stdout(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+    capsys.readouterr()
+
+    assert main(["export", "--what", "archive", "--format", "csv"]) == 0
+    out = capsys.readouterr().out
+    rows = list(csv.reader(io.StringIO(out)))
+    assert rows[0] == [
+        "id", "title", "priority", "due", "done", "done_at", "created_at", "tags", "repeat",
+    ]
+    assert rows[1][1] == "old done task"
+
+
+def test_export_what_archive_empty(capsys):
+    assert main(["export", "--what", "archive", "--format", "json"]) == 0
+    out = capsys.readouterr().out
+    assert json.loads(out) == []
+
+
+def test_import_archive_round_trips_with_export(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [
+            Task(
+                id=1,
+                title="old done task",
+                priority="high",
+                done=True,
+                done_at="2026-01-01T00:00:00+00:00",
+            )
+        ]
+    )
+    main(["archive"])
+    capsys.readouterr()
+
+    export_file = tmp_path / "archive_export.json"
+    main(["export", "--what", "archive", "--format", "json", "--output", str(export_file)])
+    original = json.loads((tmp_path / "archive.json").read_text())
+
+    (tmp_path / "archive.json").write_text("[]")
+    capsys.readouterr()
+
+    assert main(["import", str(export_file), "--what", "archive"]) == 0
+    out = capsys.readouterr().out
+    assert f"Imported 1 archived task(s) from {export_file}" in out
+
+    imported = json.loads((tmp_path / "archive.json").read_text())
+    assert len(imported) == 1
+    assert imported[0]["title"] == original[0]["title"]
+    assert imported[0]["priority"] == original[0]["priority"]
+
+
+def test_import_archive_assigns_fresh_ids_scoped_to_the_archive(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="already archived", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    export_file = tmp_path / "archive_export.json"
+    main(["export", "--what", "archive", "--format", "json", "--output", str(export_file)])
+
+    main(["import", str(export_file), "--what", "archive"])
+    archived = json.loads((tmp_path / "archive.json").read_text())
+    assert [a["title"] for a in archived] == ["already archived", "already archived"]
+    assert [a["id"] for a in archived] == [1, 2]
+
+
+def test_import_archive_does_not_touch_the_active_task_list(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [Task(id=1, title="old done task", done=True, done_at="2026-01-01T00:00:00+00:00")]
+    )
+    main(["archive"])
+
+    export_file = tmp_path / "archive_export.json"
+    main(["export", "--what", "archive", "--format", "json", "--output", str(export_file)])
+
+    main(["import", str(export_file), "--what", "archive"])
+    assert TaskStore(data_dir=tmp_path).load() == []
+
+
+def test_import_archive_malformed_json_errors(capsys, tmp_path):
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("not json")
+    assert main(["import", str(bad_file), "--what", "archive"]) == 1
+    err = capsys.readouterr().err
+    assert f"Could not parse {bad_file} as json" in err
+
+
 def test_import_journal_round_trips_with_export(capsys, tmp_path):
     main(["add", "placeholder"])
     main(["journal", "hit the gym", "--tag", "health"])
