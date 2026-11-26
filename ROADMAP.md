@@ -170,7 +170,7 @@ story (items 37-40, 81):
 - [x] 89. `journal edit <id>` gains `--tag` (repeatable, replaces the entry's existing tags) and `--task <id>` (changes which task it's linked to, validated the same way `journal add --task` already is) -- until now `journal edit` could only change an entry's body, so fixing its tags or task link meant losing its id and timestamp to a delete-and-recreate.
 - [x] 90. `onepact archive list` -- a read-only view of `archive.json` in the same line format `list` already uses. Right now, once a task is archived it's invisible to every other command; the only way to see what's in there is opening the raw JSON file by hand.
 - [x] 91. `export`/`import --what archive` extends the `--what` flag (item 81) to cover `archive.json` -- the one task-related file Phase 4's/item 81's data-safety story still doesn't reach, even though it holds real task history.
-- [ ] 92. README documentation for items 88-91.
+- [x] 92. README documentation for items 88-91.
 
 ---
 

@@ -869,6 +869,35 @@ def test_import_archive_round_trips_with_export(monkeypatch, capsys, tmp_path):
     assert imported[0]["priority"] == original[0]["priority"]
 
 
+def test_import_archive_csv_round_trips_with_export(monkeypatch, tmp_path):
+    monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
+    TaskStore(data_dir=tmp_path).save(
+        [
+            Task(
+                id=1,
+                title="old done task",
+                priority="high",
+                tags=["work"],
+                done=True,
+                done_at="2026-01-01T00:00:00+00:00",
+            )
+        ]
+    )
+    main(["archive"])
+
+    export_file = tmp_path / "archive_export.csv"
+    main(["export", "--what", "archive", "--format", "csv", "--output", str(export_file)])
+
+    (tmp_path / "archive.json").write_text("[]")
+
+    assert main(["import", str(export_file), "--what", "archive"]) == 0
+    imported = json.loads((tmp_path / "archive.json").read_text())
+    assert len(imported) == 1
+    assert imported[0]["title"] == "old done task"
+    assert imported[0]["priority"] == "high"
+    assert imported[0]["tags"] == ["work"]
+
+
 def test_import_archive_assigns_fresh_ids_scoped_to_the_archive(monkeypatch, tmp_path):
     monkeypatch.setattr("onepact.cli._today", lambda: date(2026, 2, 1))
     TaskStore(data_dir=tmp_path).save(
