@@ -41,6 +41,7 @@ onepact list --sort due
 onepact list --overdue
 onepact tags
 onepact find passport
+onepact find passport --tag admin --priority high
 onepact show 1
 onepact edit 1 "write and send the weekly review"
 onepact edit 1 "write and send the weekly review" --due today
@@ -55,7 +56,11 @@ onepact rm 1
 ```
 
 `find` searches task titles with a case-insensitive substring match; like
-`list`, it hides completed tasks unless you pass `--all`.
+`list`, it hides completed tasks unless you pass `--all`. It also takes
+the same `--tag <t>` (repeatable, narrows to tasks with all of them)
+and `--priority <p>` filters `list` has, so a title search can be
+narrowed the same way a plain listing can — `find passport --tag
+admin --priority high` combines all three.
 
 `list --tag <t>`, `--priority <p>`, and `--overdue` all combine — pass
 several to narrow down further, e.g. `list --tag home --priority high`

@@ -172,6 +172,21 @@ story (items 37-40, 81):
 - [x] 91. `export`/`import --what archive` extends the `--what` flag (item 81) to cover `archive.json` -- the one task-related file Phase 4's/item 81's data-safety story still doesn't reach, even though it holds real task history.
 - [x] 92. README documentation for items 88-91.
 
+## Phase 12 — Filters, removals, and listings catch up
+
+Every roadmap item through Phase 11 is checked off (item 59 stays
+blocked on the external decision noted there). Reading `cli.py` once
+more for commands that do nearly the same thing but don't yet match
+surfaced four more real gaps -- two pairs of filters that stop at the
+command they were first built for, and one piece of multi-target
+convenience (item 85) that never reached the other removal commands:
+
+- [x] 93. `find` gains `--tag` (repeatable, same "all of them" semantics as `list --tag`) and `--priority`, matching the filters `list` already has -- until now, finding a task by both title text and tag/priority meant running `find` and `list` separately and cross-referencing by hand.
+- [ ] 94. `journal search <text>` gains `--tag` (repeatable, same semantics), matching `journal list --tag` -- the same gap as item 93, one phase later: searching entry bodies and filtering by tag were two separate commands with no way to combine them.
+- [ ] 95. `rm`, `journal rm`, and `habit rm` all accept more than one target per call, the same multi-id convenience `done` gained in item 85 -- clearing several tasks, entries, or habits at once currently takes one full command (and, for tasks/entries, one confirmation) per target.
+- [ ] 96. `journal tags` -- lists every tag in use across journal entries, with a count per tag, mirroring `onepact tags` for tasks. Journal entries have supported tags since item 77, but there's still no way to see what tags exist without reading `journal.json` by hand, the same gap `onepact tags` (item 63) closed for tasks two phases before journal tags even existed.
+- [ ] 97. README documentation for items 93-96.
+
 ---
 
 When you reach the end of this list, don't leave it empty: propose the next

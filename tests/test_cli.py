@@ -2076,6 +2076,50 @@ def test_find_no_matches(capsys):
     assert "No matching tasks." in out
 
 
+def test_find_filters_by_tag(capsys):
+    main(["add", "renew passport", "--tag", "admin"])
+    main(["add", "renew license", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["find", "renew", "--tag", "admin"])
+    out = capsys.readouterr().out
+    assert "renew passport" in out
+    assert "renew license" not in out
+
+
+def test_find_multiple_tags_requires_all_of_them(capsys):
+    main(["add", "renew passport", "--tag", "admin", "--tag", "urgent"])
+    main(["add", "renew license", "--tag", "admin"])
+    capsys.readouterr()
+
+    main(["find", "renew", "--tag", "admin", "--tag", "urgent"])
+    out = capsys.readouterr().out
+    assert "renew passport" in out
+    assert "renew license" not in out
+
+
+def test_find_filters_by_priority(capsys):
+    main(["add", "renew passport", "--priority", "high"])
+    main(["add", "renew license", "--priority", "low"])
+    capsys.readouterr()
+
+    main(["find", "renew", "--priority", "high"])
+    out = capsys.readouterr().out
+    assert "renew passport" in out
+    assert "renew license" not in out
+
+
+def test_find_combines_tag_and_priority_filters(capsys):
+    main(["add", "renew passport", "--tag", "admin", "--priority", "high"])
+    main(["add", "renew license", "--tag", "admin", "--priority", "low"])
+    capsys.readouterr()
+
+    main(["find", "renew", "--tag", "admin", "--priority", "high"])
+    out = capsys.readouterr().out
+    assert "renew passport" in out
+    assert "renew license" not in out
+
+
 def test_find_sorts_by_priority(capsys):
     main(["add", "docs low", "--priority", "low"])
     main(["add", "docs high", "--priority", "high"])

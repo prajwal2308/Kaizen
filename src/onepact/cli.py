@@ -208,6 +208,10 @@ def cmd_find(store: TaskStore, args: argparse.Namespace) -> int:
         tasks = [t for t in tasks if not t.done]
     query = args.text.lower()
     matches = [t for t in tasks if query in t.title.lower()]
+    if args.tags:
+        matches = [t for t in matches if all(tag in t.tags for tag in args.tags)]
+    if args.priority:
+        matches = [t for t in matches if t.priority == args.priority]
     if not matches:
         print("No matching tasks.")
         return 0
@@ -1307,11 +1311,28 @@ def build_parser() -> argparse.ArgumentParser:
     p_find = sub.add_parser(
         "find",
         help="Search task titles by substring",
-        epilog=_examples("onepact find passport", "onepact find passport --all"),
+        epilog=_examples(
+            "onepact find passport",
+            "onepact find passport --all",
+            "onepact find passport --tag admin --priority high",
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_find.add_argument("text", help="Substring to search for (case-insensitive)")
     p_find.add_argument("--all", action="store_true", help="Include completed tasks")
+    p_find.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Filter to tasks with this tag (repeatable; narrows to tasks with all of them)",
+    )
+    p_find.add_argument(
+        "--priority",
+        choices=PRIORITIES,
+        default=None,
+        help="Filter to tasks with this priority",
+    )
     p_find.set_defaults(func=cmd_find)
 
     p_tags = sub.add_parser(
