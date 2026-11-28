@@ -325,6 +325,7 @@ onepact journal edit 1
 onepact journal edit 1 --tag work --tag urgent
 onepact journal edit 1 --task 2
 onepact journal search proposal
+onepact journal search proposal --tag work
 onepact journal rm 1
 onepact journal rm 1 --yes
 ```
@@ -352,7 +353,10 @@ it's linked to (rejected for an unknown id, checked before `$EDITOR`
 even opens) -- either or both combine with the body edit in the same
 call; omit them and the existing tags/link carry over untouched.
 `journal search <text>` does a case-insensitive substring search across entry bodies,
-most recent match first. `journal rm <id>` asks for confirmation before
+most recent match first; it also takes the same `--tag <t>` (repeatable,
+narrows to entries with all of them) filter `journal list` has, so a
+body search can be narrowed by tag the same way a plain listing can.
+`journal rm <id>` asks for confirmation before
 deleting; pass `--yes` (or `-y`) to skip the prompt. Like `rm`, it backs
 up `journal.json` first, so `onepact undo` right after a `journal rm`
 brings the entry back.

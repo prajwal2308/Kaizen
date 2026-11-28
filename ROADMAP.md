@@ -182,7 +182,7 @@ command they were first built for, and one piece of multi-target
 convenience (item 85) that never reached the other removal commands:
 
 - [x] 93. `find` gains `--tag` (repeatable, same "all of them" semantics as `list --tag`) and `--priority`, matching the filters `list` already has -- until now, finding a task by both title text and tag/priority meant running `find` and `list` separately and cross-referencing by hand.
-- [ ] 94. `journal search <text>` gains `--tag` (repeatable, same semantics), matching `journal list --tag` -- the same gap as item 93, one phase later: searching entry bodies and filtering by tag were two separate commands with no way to combine them.
+- [x] 94. `journal search <text>` gains `--tag` (repeatable, same semantics), matching `journal list --tag` -- the same gap as item 93, one phase later: searching entry bodies and filtering by tag were two separate commands with no way to combine them.
 - [ ] 95. `rm`, `journal rm`, and `habit rm` all accept more than one target per call, the same multi-id convenience `done` gained in item 85 -- clearing several tasks, entries, or habits at once currently takes one full command (and, for tasks/entries, one confirmation) per target.
 - [ ] 96. `journal tags` -- lists every tag in use across journal entries, with a count per tag, mirroring `onepact tags` for tasks. Journal entries have supported tags since item 77, but there's still no way to see what tags exist without reading `journal.json` by hand, the same gap `onepact tags` (item 63) closed for tasks two phases before journal tags even existed.
 - [ ] 97. README documentation for items 93-96.

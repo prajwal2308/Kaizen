@@ -374,6 +374,8 @@ def cmd_journal_search(store: JournalStore, args: argparse.Namespace) -> int:
     entries = list(reversed(store.load()))
     query = args.text.lower()
     matches = [e for e in entries if query in e.body.lower()]
+    if args.tags:
+        matches = [e for e in matches if all(tag in e.tags for tag in args.tags)]
     if not matches:
         print("No matching journal entries.")
         return 0
@@ -1691,10 +1693,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_journal_search = journal_sub.add_parser(
         "search",
         help="Search journal entries by substring",
-        epilog=_examples("onepact journal search proposal"),
+        epilog=_examples(
+            "onepact journal search proposal",
+            "onepact journal search proposal --tag work",
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_journal_search.add_argument("text", help="Substring to search for (case-insensitive)")
+    p_journal_search.add_argument(
+        "--tag",
+        dest="tags",
+        action="append",
+        default=None,
+        help="Filter to entries with this tag (repeatable; narrows to entries with all of them)",
+    )
     p_journal_search.set_defaults(func=cmd_journal_search, store_type="journal")
 
     p_journal_rm = journal_sub.add_parser(

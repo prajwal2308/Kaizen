@@ -2653,6 +2653,37 @@ def test_journal_search_no_matches(capsys):
     assert "No matching journal entries." in out
 
 
+def test_journal_search_filters_by_tag(capsys):
+    main(["journal", "drafted the proposal", "--tag", "work"])
+    main(["journal", "drafted another proposal", "--tag", "home"])
+    capsys.readouterr()
+
+    main(["journal", "search", "proposal", "--tag", "work"])
+    out = capsys.readouterr().out
+    assert "drafted the proposal" in out
+    assert "drafted another proposal" not in out
+
+
+def test_journal_search_multiple_tags_requires_all_of_them(capsys):
+    main(["journal", "drafted the proposal", "--tag", "work", "--tag", "urgent"])
+    main(["journal", "drafted another proposal", "--tag", "work"])
+    capsys.readouterr()
+
+    main(["journal", "search", "proposal", "--tag", "work", "--tag", "urgent"])
+    out = capsys.readouterr().out
+    assert "drafted the proposal" in out
+    assert "drafted another proposal" not in out
+
+
+def test_journal_search_tag_filter_with_no_matches(capsys):
+    main(["journal", "drafted the proposal", "--tag", "work"])
+    capsys.readouterr()
+
+    assert main(["journal", "search", "proposal", "--tag", "home"]) == 0
+    out = capsys.readouterr().out
+    assert "No matching journal entries." in out
+
+
 def test_journal_search_on_empty_store(capsys):
     assert main(["journal", "search", "anything"]) == 0
     out = capsys.readouterr().out
